@@ -1,0 +1,34 @@
+# Binaries
+/cfb-dynasty
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test & coverage
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Go workspace
+/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local fixtures (dynasty saves may contain personal data)
+/testdata/*.sav
+/testdata/*.bin
+/fixtures/
+
+# Internal documentation (not for public repo)
+/docs/internal/
