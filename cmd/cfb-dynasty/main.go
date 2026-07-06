@@ -20,6 +20,24 @@ Commands:
   inspect   Show container metadata without full parsing
   export    Export parsed dynasty data as JSON
 
+Export flags (default: all sections):
+  --games          Include schedule/scores
+  --recruits       Include recruiting board + player attributes
+  --season         Include current season metadata
+  --teams          Include team records (record, polls, ranks)
+  --rosters        Include team rosters + player attributes
+  --recruiting     Include recruiting pursuit state + top school interest
+  --season-stats   Include player and team season stat totals
+  --coaches        Include coaching staff records
+  --leaving-players Include offseason exit/graduation players
+  --injuries       Include active player injuries
+  --depth-charts   Include team depth charts
+  --history        Include awards, conference champions, and stat records
+  --no-game-stats  Omit team/player stat lines from game exports
+
+When one or more section flags is set, only those sections are exported.
+With no section flags, everything is included.
+
 Global flags:
   -h        Show help
 `
@@ -48,6 +66,7 @@ func runInspect(args []string) int {
 	fs := flag.NewFlagSet("inspect", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	jsonOut := fs.Bool("json", false, "print inspection as JSON")
+	schemaDir := fs.String("schema-dir", "", "directory containing gzip schema bundles")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -57,7 +76,9 @@ func runInspect(args []string) int {
 		return 2
 	}
 
-	file, err := dynasty.Open(path, nil)
+	settings := dynasty.DefaultSettings()
+	settings.SchemaDir = *schemaDir
+	file, err := dynasty.Open(path, &settings)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "inspect: %v\n", err)
 		return 1
@@ -80,6 +101,18 @@ func runInspect(args []string) int {
 	}
 
 	printInspect(info)
+	if err := file.Parse(); err != nil {
+		fmt.Fprintf(os.Stderr, "inspect: parse: %v\n", err)
+		return 1
+	}
+	fmt.Printf("parsed tables:  %d\n", len(file.Tables()))
+	if *schemaDir != "" {
+		if schema := file.Schema(); schema != nil {
+			fmt.Printf("loaded schema:  major=%d minor=%d gameYear=%d tables=%d\n",
+				schema.Version.Major, schema.Version.Minor, schema.GameYear, len(schema.Tables))
+			fmt.Printf("schema file:    %s\n", schema.Version.Path)
+		}
+	}
 	return 0
 }
 
@@ -88,6 +121,20 @@ func runExport(args []string) int {
 	fs.SetOutput(os.Stderr)
 	output := fs.String("o", "", "write JSON to file (default: stdout)")
 	pretty := fs.Bool("pretty", true, "indent JSON output")
+	schemaDir := fs.String("schema-dir", "", "directory containing gzip schema bundles")
+	includeGames := fs.Bool("games", false, "include games (schedule/scores)")
+	includeRecruits := fs.Bool("recruits", false, "include recruits and player attributes")
+	includeSeason := fs.Bool("season", false, "include season metadata")
+	includeTeams := fs.Bool("teams", false, "include team records")
+	includeRosters := fs.Bool("rosters", false, "include team rosters")
+	includeRecruiting := fs.Bool("recruiting", false, "include recruiting pursuit data")
+	includeSeasonStats := fs.Bool("season-stats", false, "include season stat totals")
+	includeCoaches := fs.Bool("coaches", false, "include coaching staff")
+	includeLeavingPlayers := fs.Bool("leaving-players", false, "include offseason exit players")
+	includeInjuries := fs.Bool("injuries", false, "include active injuries")
+	includeDepthCharts := fs.Bool("depth-charts", false, "include team depth charts")
+	includeHistory := fs.Bool("history", false, "include awards and league history")
+	omitGameStats := fs.Bool("no-game-stats", false, "omit team/player stat lines from games")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -99,6 +146,7 @@ func runExport(args []string) int {
 
 	settings := dynasty.DefaultSettings()
 	settings.AutoParse = true
+	settings.SchemaDir = *schemaDir
 	file, err := dynasty.Open(path, &settings)
 	if err != nil {
 		if dynasty.IsNotImplemented(err) {
@@ -109,7 +157,29 @@ func runExport(args []string) int {
 		return 1
 	}
 
-	export, err := file.Export()
+	exportOpts := dynasty.ExportOptions{
+		OmitGameStats: *omitGameStats,
+	}
+	if *includeGames || *includeRecruits || *includeSeason || *includeTeams || *includeRosters ||
+		*includeRecruiting || *includeSeasonStats || *includeCoaches || *includeLeavingPlayers ||
+		*includeInjuries || *includeDepthCharts || *includeHistory {
+		exportOpts.Sections = dynasty.ExportSections{
+			Games:          *includeGames,
+			Recruits:       *includeRecruits,
+			Season:         *includeSeason,
+			Teams:          *includeTeams,
+			Rosters:        *includeRosters,
+			Recruiting:     *includeRecruiting,
+			SeasonStats:    *includeSeasonStats,
+			Coaches:        *includeCoaches,
+			LeavingPlayers: *includeLeavingPlayers,
+			Injuries:       *includeInjuries,
+			DepthCharts:    *includeDepthCharts,
+			History:        *includeHistory,
+		}
+	}
+
+	export, err := file.ExportWithOptions(exportOpts)
 	if err != nil {
 		if dynasty.IsNotImplemented(err) {
 			fmt.Fprintf(os.Stderr, "export: parser not ready yet: %v\n", err)

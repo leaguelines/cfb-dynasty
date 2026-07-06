@@ -10,27 +10,64 @@ type SchemaVersion struct {
 
 // Schema holds table and field definitions loaded from game assets.
 type Schema struct {
-	Version SchemaVersion
-	Tables  map[string]*TableSchema
+	Version  SchemaVersion
+	GameYear int
+	Tables   map[string]*TableSchema
+}
+
+// Table returns a table schema by name.
+func (s *Schema) Table(name string) (*TableSchema, bool) {
+	if s == nil || s.Tables == nil {
+		return nil, false
+	}
+	t, ok := s.Tables[name]
+	return t, ok
 }
 
 // TableSchema describes columns for a named table.
 type TableSchema struct {
 	Name       string
 	Base       string
+	NumMembers int
+	AssetID    uint32
 	Attributes []FieldSchema
 }
 
 // FieldSchema describes one column in a table schema.
 type FieldSchema struct {
-	Name string
-	Type string
+	Index     int
+	Name      string
+	Type      string
+	MinValue  string
+	MaxValue  string
+	MaxLength string
+	Default   string
+	Final     bool
+	Const     bool
+	Enum      *EnumSchema
 }
 
 // LoadSchema reads schema definitions from dir for the given version.
-// Returns ErrNotImplemented until CFB schema assets are extracted.
+// Schema files are gzip-compressed JSON bundles (for example C27_441_0.gz).
+// When version.Path is set, that file is loaded directly. Otherwise dir is
+// scanned for .gz files and the closest major/minor match is chosen.
 func LoadSchema(dir string, version SchemaVersion) (*Schema, error) {
-	_ = dir
-	_ = version
-	return nil, ErrNotImplemented
+	path := version.Path
+	if path == "" {
+		var err error
+		path, err = pickSchemaFile(dir, version)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return LoadSchemaFile(path)
+}
+
+// LoadSchemaFile loads a gzip-compressed schema bundle from path.
+func LoadSchemaFile(path string) (*Schema, error) {
+	data, err := readFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return parseSchemaGzip(data, path)
 }

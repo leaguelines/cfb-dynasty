@@ -128,18 +128,33 @@ func (f *File) Parse() error {
 	}
 
 	// Table discovery and schema loading depend on confirmed CFB layout.
-	_ = discoverTables(f.unpacked)
-	_ = f.loadSchema()
+	if f.settings.SchemaDir != "" {
+		if err := f.loadSchema(); err != nil {
+			return err
+		}
+	}
 
-	return ErrNotImplemented
+	tables, err := discoverTables(f.unpacked)
+	if err != nil {
+		return err
+	}
+	attachTableSchemas(tables, f.schema)
+	f.tables = tables
+	f.loaded = true
+	return nil
 }
 
 // Export builds the normalized export payload. Requires Parse to succeed.
 func (f *File) Export() (Export, error) {
+	return f.ExportWithOptions(DefaultExportOptions())
+}
+
+// ExportWithOptions builds an export payload including only the requested sections.
+func (f *File) ExportWithOptions(opts ExportOptions) (Export, error) {
 	if !f.loaded {
 		return Export{}, ErrNotLoaded
 	}
-	return Export{}, ErrNotImplemented
+	return f.buildExport(opts)
 }
 
 // GetTableByName returns the first table with the given name.
@@ -219,19 +234,6 @@ func (f *File) loadSchema() error {
 	}
 	f.schema = schema
 	return nil
-}
-
-func discoverTables(unpacked []byte) []TableHeader {
-	var headers []TableHeader
-	for _, marker := range AllTableMarkers {
-		for _, offset := range binary.FindAll(unpacked, []byte(marker)) {
-			headers = append(headers, TableHeader{
-				Marker: marker,
-				Offset: offset,
-			})
-		}
-	}
-	return headers
 }
 
 func countTableMarkers(unpacked []byte) map[TableMarker]int {

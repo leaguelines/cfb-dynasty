@@ -1,0 +1,49 @@
+package dynasty
+
+// buildInjuryExports decodes active injury rows.
+func (f *File) buildInjuryExports() ([]InjuryExport, error) {
+	injuryTable, ok := f.PrimaryTableByName("Injury")
+	if !ok {
+		return nil, nil
+	}
+	if err := injuryTable.ReadRecords(); err != nil {
+		return nil, err
+	}
+
+	teamNames := f.teamNameByIndex()
+
+	exports := make([]InjuryExport, 0, injuryTable.ActiveRecordCount())
+	for _, record := range injuryTable.Records {
+		injuryType := stringField(record, "Type")
+		if injuryType == "" {
+			continue
+		}
+
+		export := InjuryExport{
+			ID:       record.Index,
+			Type:     injuryType,
+			Severity: stringField(record, "Severity"),
+		}
+		setOptionalPositiveInt(record, "MinDuration", &export.MinWeeks)
+		setOptionalPositiveInt(record, "MaxDuration", &export.MaxWeeks)
+
+		if player, playerID, ok := f.playerRecordFromField(record, "Player"); ok {
+			export.PlayerID = playerID
+			export.FirstName = stringField(player, "FirstName")
+			export.LastName = stringField(player, "LastName")
+			if teamID, ok := intFieldOK(player, "TeamIndex"); ok && teamID > 0 {
+				export.TeamID = &teamID
+				export.TeamName = teamNames[teamID]
+			}
+		}
+		if export.TeamName == "" {
+			if teamID, ok := intFieldOK(record, "GameTeam"); ok && teamID > 0 {
+				export.TeamID = &teamID
+				export.TeamName = teamNames[teamID]
+			}
+		}
+
+		exports = append(exports, export)
+	}
+	return exports, nil
+}

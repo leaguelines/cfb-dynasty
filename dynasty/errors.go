@@ -15,6 +15,15 @@ var (
 
 	// ErrSchemaRequired is returned when schema data is missing for parsing.
 	ErrSchemaRequired = errors.New("cfb-dynasty: schema required")
+
+	// ErrSchemaNotFound is returned when no schema bundle matches the request.
+	ErrSchemaNotFound = errors.New("cfb-dynasty: schema not found")
+
+	// ErrInvalidSchema is returned when a schema file cannot be parsed.
+	ErrInvalidSchema = errors.New("cfb-dynasty: invalid schema")
+
+	// ErrTableNotFound is returned when a requested table name does not exist.
+	ErrTableNotFound = errors.New("cfb-dynasty: table not found")
 )
 
 // IsNotImplemented reports whether err indicates unimplemented functionality.

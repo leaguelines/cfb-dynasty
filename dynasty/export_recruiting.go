@@ -1,0 +1,191 @@
+package dynasty
+
+// buildRecruitingExports assembles per-recruit pursuit state and school interest.
+func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
+	recruitTable, ok := f.PrimaryTableByName("Recruit")
+	if !ok {
+		return nil, nil
+	}
+	if err := recruitTable.ReadRecords(); err != nil {
+		return nil, err
+	}
+
+	targetTable, _ := f.PrimaryTableByName("RecruitTarget")
+	if targetTable != nil {
+		_ = targetTable.ReadRecords()
+	}
+	userTargetTable, _ := f.PrimaryTableByName("UserRecruitTarget")
+	if userTargetTable != nil {
+		_ = userTargetTable.ReadRecords()
+	}
+
+	schoolTable, _ := f.PrimaryTableByName("ProspectTargetSchool")
+	if schoolTable != nil {
+		_ = schoolTable.ReadRecords()
+	}
+	teamNames := f.teamNameByIndex()
+
+	exports := make([]RecruitingTargetExport, 0, recruitTable.ActiveRecordCount())
+	active := int(recruitTable.ActiveRecordCount())
+	for _, record := range recruitTable.Records {
+		if record.Index >= active {
+			continue
+		}
+		if stringField(record, "RecruitStage") == "Invalid" {
+			continue
+		}
+
+		export := RecruitingTargetExport{RecruitID: record.Index}
+		export.TopSchool = topSchoolInterest(record, schoolTable, teamNames)
+
+		if targetTable != nil && record.Index < len(targetTable.Records) {
+			applyRecruitTargetFields(&export, targetTable.Records[record.Index], f)
+		}
+		if userTargetTable != nil && record.Index < len(userTargetTable.Records) {
+			applyUserRecruitTargetFields(&export, userTargetTable.Records[record.Index])
+		}
+
+		if !hasRecruitingData(export) {
+			continue
+		}
+		exports = append(exports, export)
+	}
+	return exports, nil
+}
+
+func topSchoolInterest(recruit Record, schoolTable *Table, teamNames map[int]string) *RecruitingSchoolInterestExport {
+	if schoolTable == nil {
+		return nil
+	}
+	value, ok := recruit.Get("TopSchoolsList")
+	if !ok || value.Reference == nil || value.Reference.RowNumber == 0 {
+		return nil
+	}
+	idx := int(value.Reference.RowNumber)
+	if idx < 0 || idx >= len(schoolTable.Records) {
+		return nil
+	}
+	return buildSchoolInterestExport(schoolTable.Records[idx], teamNames)
+}
+
+func buildSchoolInterestExport(record Record, teamNames map[int]string) *RecruitingSchoolInterestExport {
+	teamID, ok := intFieldOK(record, "TeamId")
+	if !ok || teamID <= 0 {
+		return nil
+	}
+	influence, _ := intFieldOK(record, "TeamInfluence")
+	if influence < 0 {
+		influence = 0
+	}
+	return &RecruitingSchoolInterestExport{
+		TeamID:    teamID,
+		TeamName:  teamNames[teamID],
+		Influence: influence,
+	}
+}
+
+func applyRecruitTargetFields(export *RecruitingTargetExport, record Record, f *File) {
+	if status := stringField(record, "ScholarshipStatus"); status != "" && status != "None" {
+		export.ScholarshipStatus = status
+	}
+	export.SwayPitch = stringField(record, "SwayPitch")
+	export.ContactFriendsAndFamily = boolField(record, "ContactFriendsAndFamily")
+	export.ContactHighSchoolCoaches = boolField(record, "ContactHighSchoolCoaches")
+	export.SearchSocialMedia = boolField(record, "SearchSocialMedia")
+	export.SendTheHouse = boolField(record, "SendTheHouse")
+	export.VisitRecruitsSchool = boolField(record, "VisitRecruitsSchool")
+
+	setOptionalPositiveInt(record, "CurrentNILOffer", &export.CurrentNILOffer)
+	setOptionalPositiveInt(record, "NILExpectation", &export.NILExpectation)
+	setOptionalPositiveInt(record, "OriginalNILExpectation", &export.OriginalNILExpectation)
+	setOptionalRecruitingInt(record, "CurrentScholarshipBonus", &export.CurrentScholarshipBonus)
+	setOptionalPositiveInt(record, "ProspectInfluenceTotal", &export.ProspectInfluenceTotal)
+	setOptionalRecruitingInt(record, "ProspectInfluenceDelta", &export.ProspectInfluenceDelta)
+	setOptionalPositiveInt(record, "ProspectInfluenceTotalLastWeek", &export.ProspectInfluenceTotalLastWeek)
+	setOptionalPositiveInt(record, "ProspectHoursSpentCurrent", &export.ProspectHoursSpentCurrent)
+	setOptionalPositiveInt(record, "CommittedWeekNumber", &export.CommittedWeekNumber)
+
+	if visit, ok := record.Get("ScheduledVisit"); ok && visit.Reference != nil {
+		if visitRecord, ok := f.RecordByReference("ActiveVisitInfo", visit.Reference); ok {
+			export.ScheduledVisit = buildRecruitingVisitExport(visitRecord)
+		}
+	}
+}
+
+func applyUserRecruitTargetFields(export *RecruitingTargetExport, record Record) {
+	export.IsFavorite = boolField(record, "IsFavorite")
+	if export.ScholarshipStatus == "" {
+		export.ScholarshipStatus = stringField(record, "ScholarshipStatus")
+	}
+	if export.SwayPitch == "" {
+		export.SwayPitch = stringField(record, "SwayPitch")
+	}
+	if export.ScheduledVisit == nil {
+		// UserRecruitTarget duplicates pursuit fields; only fill visit when target row lacked it.
+	}
+}
+
+func buildRecruitingVisitExport(record Record) *RecruitingVisitExport {
+	visit := &RecruitingVisitExport{
+		WeekType: stringField(record, "WeekType"),
+		Activity: stringField(record, "Activity"),
+	}
+	if week, ok := intFieldOK(record, "WeekNumber"); ok && week > 0 {
+		visit.Week = week
+	}
+	if visit.Week == 0 && visit.WeekType == "" && visit.Activity == "" {
+		return nil
+	}
+	return visit
+}
+
+func hasRecruitingData(export RecruitingTargetExport) bool {
+	if export.TopSchool != nil {
+		return true
+	}
+	if export.ScholarshipStatus != "" && export.ScholarshipStatus != "None" {
+		return true
+	}
+	if export.SwayPitch != "" {
+		return true
+	}
+	if export.ScheduledVisit != nil {
+		return true
+	}
+	if export.IsFavorite {
+		return true
+	}
+	if export.ContactFriendsAndFamily || export.ContactHighSchoolCoaches ||
+		export.SearchSocialMedia || export.SendTheHouse || export.VisitRecruitsSchool {
+		return true
+	}
+	return export.CurrentNILOffer != nil || export.NILExpectation != nil ||
+		export.OriginalNILExpectation != nil || export.CurrentScholarshipBonus != nil ||
+		export.ProspectInfluenceTotal != nil || export.ProspectInfluenceDelta != nil ||
+		export.ProspectInfluenceTotalLastWeek != nil || export.ProspectHoursSpentCurrent != nil ||
+		export.CommittedWeekNumber != nil
+}
+
+func boolField(record Record, name string) bool {
+	value, ok := record.Get(name)
+	if !ok {
+		return false
+	}
+	return value.Bool
+}
+
+func setOptionalPositiveInt(record Record, name string, dst **int) {
+	v, ok := intFieldOK(record, name)
+	if !ok || v <= 0 {
+		return
+	}
+	*dst = &v
+}
+
+func setOptionalRecruitingInt(record Record, name string, dst **int) {
+	v, ok := intFieldOK(record, name)
+	if !ok || v <= -100 {
+		return
+	}
+	*dst = &v
+}

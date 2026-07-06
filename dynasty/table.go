@@ -8,6 +8,31 @@ type TableHeader struct {
 	Offset   int
 	Length   int
 	Marker   TableMarker
+
+	IsArray         bool
+	RecordCount     uint32
+	NextRecordToUse uint32
+	RecordSize      int
+	NumMembers      uint32
+	HeaderSize      int
+	Table1StartIndex int
+	Table2StartIndex int
+	Table3StartIndex int
+	OffsetStart      int
+	Table1Length    uint32
+	Table2Length    uint32
+	Table3Length    uint32
+	TableTotalLength uint32
+	HasSecondTable  bool
+	HasThirdTable   bool
+}
+
+// ActiveRecordCount returns the number of allocated rows in the table.
+func (h TableHeader) ActiveRecordCount() uint32 {
+	if h.NextRecordToUse > 0 && h.NextRecordToUse <= h.RecordCount {
+		return h.NextRecordToUse
+	}
+	return h.RecordCount
 }
 
 // Table represents one SPBF/ASTO/SPEX table inside an unpacked save.
@@ -33,4 +58,14 @@ func (t *Table) Name() string {
 // RecordCount returns the number of parsed records.
 func (t *Table) RecordCount() int {
 	return len(t.Records)
+}
+
+// AllocatedRecordCount returns rows allocated in the table header.
+func (t *Table) AllocatedRecordCount() uint32 {
+	return t.Header.RecordCount
+}
+
+// ActiveRecordCount returns rows currently in use per the table header.
+func (t *Table) ActiveRecordCount() uint32 {
+	return t.Header.ActiveRecordCount()
 }

@@ -72,8 +72,19 @@ func TestParseNotImplemented(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := file.Parse(); !IsNotImplemented(err) {
-		t.Fatalf("Parse() = %v, want ErrNotImplemented", err)
+	if err := file.Parse(); err != nil {
+		t.Fatalf("Parse() = %v", err)
+	}
+	if !file.Loaded() {
+		t.Fatal("expected loaded file")
+	}
+	settings := DefaultSettings()
+	settings.SchemaDir = t.TempDir() // empty - no schema
+	if err := file.Parse(); err != nil {
+		t.Fatalf("Parse() = %v", err)
+	}
+	if _, err := file.Export(); err != ErrSchemaRequired {
+		t.Fatalf("Export() = %v, want ErrSchemaRequired", err)
 	}
 }
 

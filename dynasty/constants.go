@@ -13,6 +13,13 @@ const (
 	// CompressedDataOffset is Madden's zlib payload skip; CFB may differ.
 	CompressedDataOffset = 0x52
 
+	// TableMarkerOffset is the byte offset of the SPBF/ASTO/SPEX marker in a table header.
+	TableMarkerOffset = 0x94
+
+	// table2StringIndexSentinel marks an indirect table2 string reference; the real
+	// index is stored in another field (CFB Team LongName uses DIV_SLOTNUMBER).
+	table2StringIndexSentinel = 0x80000000
+
 	DefaultGameYear = 27
 )
 
