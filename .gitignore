@@ -30,5 +30,9 @@ Thumbs.db
 /testdata/*.bin
 /fixtures/
 
+# Game-derived schema bundles and local RE data (do not redistribute)
+/data/
+*.gz
+
 # Internal documentation (not for public repo)
 /docs/internal/

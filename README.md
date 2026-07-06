@@ -18,9 +18,81 @@ go get github.com/leaguelines/cfb-dynasty/dynasty
 
 ## Schema bundles
 
-Table decoding requires a gzip-compressed schema file from the game assets (naming pattern like `C27_441_0.gz`). Point `--schema-dir` at the directory containing that file.
+Table decoding requires a **gzip-compressed JSON schema bundle** derived from the game install. Each bundle lists thousands of table definitions (field names, types, enums) used by the FranTk-style save format.
 
-The schema major/minor version is read from the save header when possible; you can also place multiple bundles in the same directory and the closest match is selected.
+### File format and naming
+
+Bundles use the same JSON layout as [madden-franchise](https://github.com/bep713/madden-franchise) `.gz` schemas:
+
+```json
+{
+  "meta": { "major": 441, "minor": 0, "gameYear": 27 },
+  "schemas": [ ... ],
+  "schemaMap": { ... }
+}
+```
+
+Place one or more files in a directory and pass it to `--schema-dir`. Recognized filenames:
+
+| Pattern | Example | Meaning |
+|---------|---------|---------|
+| `C{year}_{major}_{minor}.gz` | `C27_441_0.gz` | CFB, game year 27, bundle major 441, minor 0 |
+| `{major}_{minor}.gz` | `441_0.gz` | Major/minor only (game year optional) |
+| `M{year}_{major}_{minor}.gz` | `M27_441_0.gz` | Madden-style prefix also accepted |
+
+`inspect` prints the schema version embedded in your save and which bundle was loaded:
+
+```bash
+cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1.sav
+# schema:         major=809 minor=1      ← from save header
+# loaded schema:  major=441 minor=0 ...  ← picked bundle
+```
+
+The save header version and the bundle `meta` version use **different numbering** (for example save `809.1` vs bundle `441.0`). When several bundles are present, the loader picks the closest major/minor match; with only one file in the directory, that file is used.
+
+### How to obtain a bundle
+
+You need a **legal copy of the game** on PC. Schema data lives inside the install assets; it is not shipped with this repository.
+
+**1. Extract raw schema assets (Frosty)**
+
+The Madden modding workflow applies to CFB as well:
+
+1. Install [Frosty Editor](https://frostytoolsuite.com/) and point it at your College Football 27 install.
+2. Open **Legacy Explorer** and search for franchise / FranTk schema assets (Madden uses `franchise-schemas.ftx` under `common → franchise`; CFB paths are still being mapped — see internal RE notes).
+3. Export the schema `.ftx` / `.xml` files to a folder on disk.
+
+**2. Convert to gzip JSON**
+
+The CLI expects the **evaluated** `.gz` bundle, not raw `.ftx`. The usual path is the madden-franchise schema generator (same engine family):
+
+- Use [`madden-franchise`](https://github.com/bep713/madden-franchise) `FranchiseSchema` / `schemaGenerator` to load the extracted `.ftx` and emit a `.gz` JSON bundle, **or**
+- Use tooling from the [Madden Franchise Editor](https://github.com/bep713/madden-franchise-editor) ecosystem (`schemaSearchService` can pull schemas from CAS/LZ4 game assets).
+
+**3. Name and verify**
+
+Rename the output to match your game year and bundle `meta` (for example `C27_441_0.gz`), then confirm decoding works:
+
+```bash
+cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1.sav
+cfb-dynasty export -schema-dir ./schemas --teams /path/to/Dynasty1.sav | head
+```
+
+If you already have a working bundle (like `C27_441_0.gz` from local RE), you can use it directly — no re-extraction needed until EA ships a patch that changes table layouts.
+
+### Should schema bundles be committed to git?
+
+**No — do not commit them to a public repository.**
+
+| Concern | Notes |
+|---------|-------|
+| **Copyright** | Bundles are derived from EA game assets (table/field names, types, enums). Redistributing them is likely outside EA's terms, even though the files are not executable game content. |
+| **Size** | ~3 MB compressed, ~30 MB inflated — poor fit for git history. |
+| **Patch churn** | EA title updates can change schema major/minor; bundles go stale quickly. |
+
+**Recommended approach:** keep bundles in a local `data/` or `schemas/` directory (gitignored), document extraction steps (this section), and let each developer generate or copy their own from an owned game install. Integration tests already **skip** when `data/C27_441_0.gz` is absent.
+
+For private teams, a shared drive or internal artifact bucket is fine; just avoid publishing the files in the open-source repo or release tarballs.
 
 ## CLI
 
@@ -196,7 +268,7 @@ go test ./...
 go run ./cmd/cfb-dynasty export -schema-dir ./schemas --help
 ```
 
-Place test saves and schema bundles in a local `data/` directory (not committed).
+Place test saves and schema bundles in a local `data/` directory. Dynasty saves may contain personal league data; schema bundles are game-derived assets — **neither should be committed** (see [Schema bundles](#schema-bundles)).
 
 ### Contributing
 
