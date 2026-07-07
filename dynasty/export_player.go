@@ -52,6 +52,10 @@ func buildPlayerExport(record Record) *PlayerExport {
 		}
 	}
 
+	if label := archetypeLabelFromRecord(record); label != "" {
+		player.ArchetypeLabel = label
+	}
+
 	ratings := make(map[string]int)
 	for key, value := range record.Fields {
 		if value.String != "" || value.Reference != nil {

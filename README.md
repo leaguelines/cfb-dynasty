@@ -149,7 +149,7 @@ Run `cfb-dynasty -h` or `cfb-dynasty export -h` for full usage.
 cfb-dynasty export -schema-dir ./schemas --recruits /path/to/Dynasty1.sav | \
   jq '.recruits[] | select(.nationalRank != null and .player != null) |
       {rank: .nationalRank, name: "\(.player.firstName) \(.player.lastName)",
-       position: .player.position, overall: .player.overall, ratings: .player.ratings}'
+       position: .player.position, archetype: .player.archetypeLabel, overall: .player.overall}'
 ```
 
 ## Library

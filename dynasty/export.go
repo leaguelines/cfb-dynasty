@@ -409,8 +409,9 @@ type PlayerExport struct {
 	FirstName   string         `json:"firstName,omitempty"`
 	LastName    string         `json:"lastName,omitempty"`
 	Position    string         `json:"position,omitempty"`
-	Archetype   string         `json:"archetype,omitempty"`
-	SchoolYear  string         `json:"schoolYear,omitempty"`
+	Archetype      string         `json:"archetype,omitempty"`
+	ArchetypeLabel string         `json:"archetypeLabel,omitempty"`
+	SchoolYear     string         `json:"schoolYear,omitempty"`
 	Age         *int           `json:"age,omitempty"`
 	Height      *int           `json:"height,omitempty"`
 	Weight      *int           `json:"weight,omitempty"`
