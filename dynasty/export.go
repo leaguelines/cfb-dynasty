@@ -422,6 +422,8 @@ type PlayerExport struct {
 	Jersey      *int           `json:"jersey,omitempty"`
 	TeamIndex   *int           `json:"teamIndex,omitempty"`
 	Ratings     map[string]int `json:"ratings,omitempty"`
+	SkillGroupCaps     []int `json:"skillGroupCaps,omitempty"`
+	SkillGroupCapTotal int   `json:"skillGroupCapTotal,omitempty"`
 }
 
 // MarshalJSON writes export data with stable field ordering defaults.

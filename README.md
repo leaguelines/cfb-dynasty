@@ -149,8 +149,26 @@ Run `cfb-dynasty -h` or `cfb-dynasty export -h` for full usage.
 cfb-dynasty export -schema-dir ./schemas --recruits /path/to/Dynasty1.sav | \
   jq '.recruits[] | select(.nationalRank != null and .player != null) |
       {rank: .nationalRank, name: "\(.player.firstName) \(.player.lastName)",
-       position: .player.position, archetype: .player.archetypeLabel, overall: .player.overall}'
+       position: .player.position, archetype: .player.archetypeLabel, overall: .player.overall,
+       skillCaps: .player.skillGroupCaps, skillCapTotal: .player.skillGroupCapTotal}'
 ```
+
+### Skill group caps
+
+Every player (including a recruit's linked `player`) exports its six skill-group
+caps read straight from the save:
+
+- `skillGroupCaps` — the six positional caps (`SkillGroupCap1..6`).
+- `skillGroupCapTotal` — their sum (a strong proxy for a recruit's ceiling / star tier).
+
+The caps are exported as **opaque, positional values** — the array is ordered by
+`SkillGroupCap1..6` as stored in the save. The game buckets these into six
+position-specific skill groups, but the group **names** are not present in the
+dynasty save (they live in the tuning FTC, which is not yet extractable for
+CFB 27). Rather than guess at labels, the export intentionally leaves the slots
+unnamed until definitive names are available. Note also that only the per-group
+*cap* is known — the individual ratings inside each group are tuning-driven and
+not in the save.
 
 ## Library
 

@@ -56,6 +56,11 @@ func buildPlayerExport(record Record) *PlayerExport {
 		player.ArchetypeLabel = label
 	}
 
+	if caps, total, ok := skillGroupCapsFromRecord(record); ok {
+		player.SkillGroupCaps = caps
+		player.SkillGroupCapTotal = total
+	}
+
 	ratings := make(map[string]int)
 	for key, value := range record.Fields {
 		if value.String != "" || value.Reference != nil {
