@@ -9,17 +9,30 @@ package dynasty
 // at that player's individual game-stat rows. offOwners/defOwners invert those
 // arrays so each stat row can be attributed to its player.
 type gameStatsIndex struct {
-	offense   [][]Record
-	defense   [][]Record
-	offOwners map[int]int // GameOffensiveStats row index -> Player row index
-	defOwners map[int]int // GameDefensiveStats row index -> Player row index
-	players   []Record    // Player rows indexed by row number
+	offense     [][]Record
+	defense     [][]Record
+	kpReturn    [][]kpStatRow // kick/punt return rows (offensive + defensive KP tables) by game
+	offOwners   map[int]int   // GameOffensiveStats row index -> Player row index
+	defOwners   map[int]int   // GameDefensiveStats row index -> Player row index
+	kpOffOwners map[int]int   // GameOffensiveKPReturnStats row index -> Player row index
+	kpDefOwners map[int]int   // GameDefensiveKPReturnStats row index -> Player row index
+	kpOffID     uint32
+	kpDefID     uint32
+	players     []Record // Player rows indexed by row number
+}
+
+// kpStatRow is a kick/punt return stat row tagged with its source table so it
+// can be attributed via the matching owner map.
+type kpStatRow struct {
+	record  Record
+	tableID uint32
 }
 
 func (f *File) buildGameStatsIndex(gameCount int) (gameStatsIndex, error) {
 	idx := gameStatsIndex{
-		offense: make([][]Record, gameCount),
-		defense: make([][]Record, gameCount),
+		offense:  make([][]Record, gameCount),
+		defense:  make([][]Record, gameCount),
+		kpReturn: make([][]kpStatRow, gameCount),
 	}
 	if gameCount == 0 {
 		return idx, nil
@@ -71,6 +84,36 @@ func (f *File) buildGameStatsIndex(gameCount int) (gameStatsIndex, error) {
 		}
 	}
 
+	// Kick/punt return rows live in dedicated KPReturn tables and bucket into
+	// games the same way (direct SeasonGame index). Tag each row with its table
+	// so it can be attributed via the matching owner map.
+	for _, name := range []string{"GameOffensiveKPReturnStats", "GameDefensiveKPReturnStats"} {
+		kp, ok := f.PrimaryTableByName(name)
+		if !ok {
+			continue
+		}
+		if err := kp.ReadRecords(); err != nil {
+			return idx, err
+		}
+		switch name {
+		case "GameOffensiveKPReturnStats":
+			idx.kpOffID = kp.Header.TableID
+		case "GameDefensiveKPReturnStats":
+			idx.kpDefID = kp.Header.TableID
+		}
+		for _, record := range kp.Records {
+			ref, ok := record.Get("SeasonGame")
+			if !ok || !belongsToSeason(ref.Reference) {
+				continue
+			}
+			gameIdx, ok := GameIndexFromStatReference(ref.Reference, gameCount)
+			if !ok {
+				continue
+			}
+			idx.kpReturn[gameIdx] = append(idx.kpReturn[gameIdx], kpStatRow{record: record, tableID: kp.Header.TableID})
+		}
+	}
+
 	f.attachGameStatOwners(&idx)
 
 	return idx, nil
@@ -102,8 +145,13 @@ func (f *File) attachGameStatOwners(idx *gameStatsIndex) {
 		defID = def.Header.TableID
 	}
 
+	kpOff, kpOffOK := f.PrimaryTableByName("GameOffensiveKPReturnStats")
+	kpDef, kpDefOK := f.PrimaryTableByName("GameDefensiveKPReturnStats")
+
 	idx.offOwners = make(map[int]int)
 	idx.defOwners = make(map[int]int)
+	idx.kpOffOwners = make(map[int]int)
+	idx.kpDefOwners = make(map[int]int)
 
 	for _, player := range playerTable.Records {
 		gs, ok := player.Get("GameStats")
@@ -130,6 +178,18 @@ func (f *File) attachGameStatOwners(idx *gameStatsIndex) {
 			}
 			row := int(value.Reference.RowNumber)
 			switch {
+			case kpOffOK && value.Reference.TableID == idx.kpOffID:
+				if row >= 0 && row < len(kpOff.Records) {
+					if _, exists := idx.kpOffOwners[row]; !exists {
+						idx.kpOffOwners[row] = player.Index
+					}
+				}
+			case kpDefOK && value.Reference.TableID == idx.kpDefID:
+				if row >= 0 && row < len(kpDef.Records) {
+					if _, exists := idx.kpDefOwners[row]; !exists {
+						idx.kpDefOwners[row] = player.Index
+					}
+				}
 			case offOK && value.Reference.TableID == offID:
 				if row >= 0 && row < len(off.Records) {
 					if _, exists := idx.offOwners[row]; !exists {
@@ -171,6 +231,12 @@ func buildTeamStatsExport(record Record) *TeamStatsExport {
 	setTeamStat(&stats.FirstDowns, "FIRSTDOWNS")
 	setTeamStat(&stats.Turnovers, "GIVEAWAYS")
 	setTeamStat(&stats.Sacks, "SACKS")
+	setTeamStat(&stats.DefPassYards, "DEFPASSYARDS")
+	setTeamStat(&stats.DefRushYards, "DEFRUSHYARDS")
+	setTeamStat(&stats.KickReturnYards, "KICKRETURNYARDS")
+	setTeamStat(&stats.PuntReturnYards, "PUNTRETURNYARDS")
+	setTeamStat(&stats.PuntYards, "PUNTYARDS")
+	setTeamStat(&stats.SpecialTeamYards, "SPECIALTEAMYARDS")
 	return stats
 }
 
@@ -220,10 +286,44 @@ func buildDefensiveGameStatsExport(record Record) *DefensiveGameStatsExport {
 	return stats
 }
 
+// buildSpecialTeamsStatsExport reads kick/punt return stats from a KPReturnStats
+// row. Zero counters are kept (matching per-game stat behavior), but a row with
+// no return activity at all yields nil so non-returners aren't cluttered with an
+// empty block.
+func buildSpecialTeamsStatsExport(record Record) *SpecialTeamsStatsExport {
+	if len(record.Fields) == 0 {
+		return nil
+	}
+	stats := &SpecialTeamsStatsExport{}
+	activity := 0
+	set := func(dst **int, name string) {
+		if v, ok := gameStatIntOK(record, name); ok {
+			*dst = &v
+			activity += v
+		}
+	}
+	set(&stats.KickReturns, "KRETATTEMPTS")
+	set(&stats.KickReturnYards, "KRETYARDS")
+	set(&stats.KickReturnLongest, "KRETLONGEST")
+	set(&stats.KickReturnTDs, "KRETTDS")
+	set(&stats.PuntReturns, "PRETATTEMPTS")
+	set(&stats.PuntReturnYards, "PRETYARDS")
+	set(&stats.PuntReturnLongest, "PRETLONGEST")
+	set(&stats.PuntReturnTDs, "PRETTDS")
+	if activity == 0 {
+		return nil
+	}
+	return stats
+}
+
 func buildPlayerGameStatsExports(gameIdx int, idx gameStatsIndex) []PlayerGameStatsExport {
 	offRows := idx.offense[gameIdx]
 	defRows := idx.defense[gameIdx]
-	if len(offRows) == 0 && len(defRows) == 0 {
+	var kpRows []kpStatRow
+	if gameIdx < len(idx.kpReturn) {
+		kpRows = idx.kpReturn[gameIdx]
+	}
+	if len(offRows) == 0 && len(defRows) == 0 && len(kpRows) == 0 {
 		return nil
 	}
 
@@ -271,11 +371,55 @@ func buildPlayerGameStatsExports(gameIdx int, idx gameStatsIndex) []PlayerGameSt
 		playerIdx, owned := idx.defOwners[record.Index]
 		out[entryFor(playerIdx, owned)].Defense = defense
 	}
+	for _, kp := range kpRows {
+		special := buildSpecialTeamsStatsExport(kp.record)
+		if special == nil {
+			continue
+		}
+		var playerIdx int
+		var owned bool
+		switch kp.tableID {
+		case idx.kpOffID:
+			playerIdx, owned = idx.kpOffOwners[kp.record.Index]
+		case idx.kpDefID:
+			playerIdx, owned = idx.kpDefOwners[kp.record.Index]
+		}
+		pos := entryFor(playerIdx, owned)
+		// A player can appear in both KP tables for a game; merge rather than
+		// overwrite so kick- and punt-return lines don't clobber each other.
+		out[pos].SpecialTeams = mergeSpecialTeams(out[pos].SpecialTeams, special)
+	}
 
 	if len(out) == 0 {
 		return nil
 	}
 	return out
+}
+
+// mergeSpecialTeams combines two special teams lines, preferring populated
+// fields from either. It is used when a player has both offensive and defensive
+// KP return rows in a single game.
+func mergeSpecialTeams(a, b *SpecialTeamsStatsExport) *SpecialTeamsStatsExport {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	pick := func(dst **int, src *int) {
+		if *dst == nil && src != nil {
+			*dst = src
+		}
+	}
+	pick(&a.KickReturns, b.KickReturns)
+	pick(&a.KickReturnYards, b.KickReturnYards)
+	pick(&a.KickReturnLongest, b.KickReturnLongest)
+	pick(&a.KickReturnTDs, b.KickReturnTDs)
+	pick(&a.PuntReturns, b.PuntReturns)
+	pick(&a.PuntReturnYards, b.PuntReturnYards)
+	pick(&a.PuntReturnLongest, b.PuntReturnLongest)
+	pick(&a.PuntReturnTDs, b.PuntReturnTDs)
+	return a
 }
 
 func attachTeamGameStats(f *File, game *GameExport, record Record) {

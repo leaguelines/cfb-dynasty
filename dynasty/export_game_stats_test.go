@@ -54,6 +54,69 @@ func TestBuildOffensiveGameStatsExportIncludesZeros(t *testing.T) {
 	}
 }
 
+func TestBuildSpecialTeamsStatsExport(t *testing.T) {
+	// Row with kick-return activity: all fields populated, including zeros.
+	record := Record{
+		Fields: map[string]FieldValue{
+			"KRETATTEMPTS": {Int: 3},
+			"KRETYARDS":    {Int: 142},
+			"KRETLONGEST":  {Int: 99},
+			"KRETTDS":      {Int: 1},
+			"PRETATTEMPTS": {Int: 0},
+			"PRETYARDS":    {Int: 0},
+			"PRETLONGEST":  {Int: 0},
+			"PRETTDS":      {Int: 0},
+		},
+	}
+	stats := buildSpecialTeamsStatsExport(record)
+	if stats == nil {
+		t.Fatal("expected special teams stats export")
+	}
+	if stats.KickReturnTDs == nil || *stats.KickReturnTDs != 1 {
+		t.Fatalf("kickReturnTDs = %v want 1", stats.KickReturnTDs)
+	}
+	if stats.KickReturnYards == nil || *stats.KickReturnYards != 142 {
+		t.Fatalf("kickReturnYards = %v want 142", stats.KickReturnYards)
+	}
+	if stats.PuntReturns == nil || *stats.PuntReturns != 0 {
+		t.Fatalf("puntReturns = %v want 0", stats.PuntReturns)
+	}
+
+	// Row with no return activity at all yields nil (non-returners stay clean).
+	empty := Record{
+		Fields: map[string]FieldValue{
+			"KRETATTEMPTS": {Int: 0},
+			"KRETYARDS":    {Int: 0},
+			"KRETTDS":      {Int: 0},
+			"PRETATTEMPTS": {Int: 0},
+			"PRETYARDS":    {Int: 0},
+			"PRETTDS":      {Int: 0},
+		},
+	}
+	if got := buildSpecialTeamsStatsExport(empty); got != nil {
+		t.Fatalf("expected nil for inactive returner, got %+v", got)
+	}
+}
+
+func TestMergeSpecialTeams(t *testing.T) {
+	kr, pr := 5, 3
+	a := &SpecialTeamsStatsExport{KickReturns: &kr}
+	b := &SpecialTeamsStatsExport{PuntReturns: &pr}
+	merged := mergeSpecialTeams(a, b)
+	if merged.KickReturns == nil || *merged.KickReturns != 5 {
+		t.Fatalf("kickReturns = %v want 5", merged.KickReturns)
+	}
+	if merged.PuntReturns == nil || *merged.PuntReturns != 3 {
+		t.Fatalf("puntReturns = %v want 3", merged.PuntReturns)
+	}
+	if got := mergeSpecialTeams(nil, b); got != b {
+		t.Fatal("merge(nil, b) should return b")
+	}
+	if got := mergeSpecialTeams(a, nil); got != a {
+		t.Fatal("merge(a, nil) should return a")
+	}
+}
+
 func TestBuildDefensiveGameStatsExportIncludesZeros(t *testing.T) {
 	record := Record{
 		Fields: map[string]FieldValue{

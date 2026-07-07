@@ -30,6 +30,8 @@ func (f *File) buildPlayerSeasonStatsExports() ([]PlayerSeasonStatsExport, error
 		return nil, nil
 	}
 
+	specialByPlayer := f.buildSeasonSpecialTeamsByPlayer()
+
 	exports := make([]PlayerSeasonStatsExport, 0, rowCount/4)
 	for idx := 0; idx < rowCount; idx++ {
 		var offRecord, defRecord Record
@@ -55,9 +57,86 @@ func (f *File) buildPlayerSeasonStatsExports() ([]PlayerSeasonStatsExport, error
 		if playerTable != nil && idx < len(playerTable.Records) {
 			applyPlayerIdentityToSeasonStats(&export, playerTable.Records[idx])
 		}
+		if special, ok := specialByPlayer[idx]; ok {
+			export.SpecialTeams = special
+		}
 		exports = append(exports, export)
 	}
 	return exports, nil
+}
+
+// buildSeasonSpecialTeamsByPlayer walks each Player's SeasonStats[] array store
+// and resolves kick/punt return season totals, keyed by player row index. Return
+// stats live in dedicated KPReturn tables that are not parallel-indexed with the
+// Player table, so they must be linked through the season stat array.
+func (f *File) buildSeasonSpecialTeamsByPlayer() map[int]*SpecialTeamsStatsExport {
+	playerTable, ok := f.PrimaryTableByName("Player")
+	if !ok || playerTable == nil {
+		return nil
+	}
+	if err := playerTable.ReadRecords(); err != nil {
+		return nil
+	}
+	kpOff, kpOffOK := f.PrimaryTableByName("SeasonOffensiveKPReturnStats")
+	kpDef, kpDefOK := f.PrimaryTableByName("SeasonDefensiveKPReturnStats")
+	if !kpOffOK && !kpDefOK {
+		return nil
+	}
+	var offID, defID uint32
+	if kpOffOK {
+		_ = kpOff.ReadRecords()
+		offID = kpOff.Header.TableID
+	}
+	if kpDefOK {
+		_ = kpDef.ReadRecords()
+		defID = kpDef.Header.TableID
+	}
+
+	out := make(map[int]*SpecialTeamsStatsExport)
+	for _, player := range playerTable.Records {
+		ss, ok := player.Get("SeasonStats")
+		if !ok || ss.Reference == nil {
+			continue
+		}
+		if ss.Reference.TableID == 0 && ss.Reference.RowNumber == 0 {
+			continue
+		}
+		arrTable, ok := f.GetTableByID(ss.Reference.TableID)
+		if !ok || arrTable == nil {
+			continue
+		}
+		if err := arrTable.ReadRecords(); err != nil {
+			continue
+		}
+		rowIdx := int(ss.Reference.RowNumber)
+		if rowIdx < 0 || rowIdx >= len(arrTable.Records) {
+			continue
+		}
+		for _, value := range arrTable.Records[rowIdx].Fields {
+			if value.Reference == nil {
+				continue
+			}
+			var tbl *Table
+			switch {
+			case kpOffOK && value.Reference.TableID == offID:
+				tbl = kpOff
+			case kpDefOK && value.Reference.TableID == defID:
+				tbl = kpDef
+			default:
+				continue
+			}
+			row := int(value.Reference.RowNumber)
+			if row < 0 || row >= len(tbl.Records) {
+				continue
+			}
+			special := buildSpecialTeamsStatsExport(tbl.Records[row])
+			if special == nil {
+				continue
+			}
+			out[player.Index] = mergeSpecialTeams(out[player.Index], special)
+		}
+	}
+	return out
 }
 
 func applySeasonPlayerMeta(export *PlayerSeasonStatsExport, offRecord, defRecord Record) {
@@ -223,6 +302,10 @@ func buildTeamSeasonStatsExport(record Record) *TeamStatsExport {
 	setStat(&stats.Sacks, "SACKS")
 	setStat(&stats.DefPassYards, "DEFPASSYARDS")
 	setStat(&stats.DefRushYards, "DEFRUSHYARDS")
+	setStat(&stats.KickReturnYards, "KICKRETURNYARDS")
+	setStat(&stats.PuntReturnYards, "PUNTRETURNYARDS")
+	setStat(&stats.PuntYards, "PUNTYARDS")
+	setStat(&stats.SpecialTeamYards, "SPECIALTEAMYARDS")
 
 	if !hasData {
 		return nil

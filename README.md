@@ -179,12 +179,20 @@ When game stats are included (`--games`, on by default), each game carries a
 - `player` — a lightweight identity (`firstName`, `lastName`, `position`,
   `jersey`, `teamIndex`) so lines are readable without a join.
 - `offense` / `defense` — the stat line(s); a player with both merges into one entry.
+- `specialTeams` — kick/punt return line (attempts, yards, longest, TDs) when the
+  player returned kicks or punts that game.
 
 The game-stat rows themselves store no player reference — ownership lives on the
 `Player` side via a `GameStats[]` array store that points at each player's rows.
 The exporter inverts those arrays to attribute every stat line, and rows are
 bucketed into games by their direct `SeasonGame` record index (stale references
 to other seasons are dropped).
+
+Kick/punt returns live in separate `KPReturnStats` tables (the box-score
+`TeamStats` table has no special-teams TD field, so team totals cover yardage
+only). The same `GameStats[]` / `SeasonStats[]` array stores link those rows back
+to their players, and the `specialTeams` block appears on both per-game
+(`playerGameStats`) and per-season (`seasonPlayerStats`) lines.
 
 ### Record book
 

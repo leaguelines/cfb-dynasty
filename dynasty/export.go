@@ -97,25 +97,29 @@ type GameExport struct {
 
 // TeamStatsExport is a team stat line (game or season).
 type TeamStatsExport struct {
-	Wins            *int `json:"wins,omitempty"`
-	Losses          *int `json:"losses,omitempty"`
-	TotalYards      *int `json:"totalYards,omitempty"`
-	PassYards       *int `json:"passYards,omitempty"`
-	RushYards       *int `json:"rushYards,omitempty"`
-	PassAttempts    *int `json:"passAttempts,omitempty"`
-	PassCompletions *int `json:"passCompletions,omitempty"`
-	PassTDs         *int `json:"passTDs,omitempty"`
-	PassInts        *int `json:"passInts,omitempty"`
-	RushAttempts    *int `json:"rushAttempts,omitempty"`
-	RushTDs         *int `json:"rushTDs,omitempty"`
-	FirstDowns      *int `json:"firstDowns,omitempty"`
-	Turnovers       *int `json:"turnovers,omitempty"`
-	Sacks           *int `json:"sacks,omitempty"`
-	Ties            *int `json:"ties,omitempty"`
-	Takeaways       *int `json:"takeaways,omitempty"`
-	Giveaways       *int `json:"giveaways,omitempty"`
-	DefPassYards    *int `json:"defPassYards,omitempty"`
-	DefRushYards    *int `json:"defRushYards,omitempty"`
+	Wins             *int `json:"wins,omitempty"`
+	Losses           *int `json:"losses,omitempty"`
+	TotalYards       *int `json:"totalYards,omitempty"`
+	PassYards        *int `json:"passYards,omitempty"`
+	RushYards        *int `json:"rushYards,omitempty"`
+	PassAttempts     *int `json:"passAttempts,omitempty"`
+	PassCompletions  *int `json:"passCompletions,omitempty"`
+	PassTDs          *int `json:"passTDs,omitempty"`
+	PassInts         *int `json:"passInts,omitempty"`
+	RushAttempts     *int `json:"rushAttempts,omitempty"`
+	RushTDs          *int `json:"rushTDs,omitempty"`
+	FirstDowns       *int `json:"firstDowns,omitempty"`
+	Turnovers        *int `json:"turnovers,omitempty"`
+	Sacks            *int `json:"sacks,omitempty"`
+	Ties             *int `json:"ties,omitempty"`
+	Takeaways        *int `json:"takeaways,omitempty"`
+	Giveaways        *int `json:"giveaways,omitempty"`
+	DefPassYards     *int `json:"defPassYards,omitempty"`
+	DefRushYards     *int `json:"defRushYards,omitempty"`
+	KickReturnYards  *int `json:"kickReturnYards,omitempty"`
+	PuntReturnYards  *int `json:"puntReturnYards,omitempty"`
+	PuntYards        *int `json:"puntYards,omitempty"`
+	SpecialTeamYards *int `json:"specialTeamYards,omitempty"`
 }
 
 // PlayerSeasonStatsExport is a player's accumulated season stat line.
@@ -129,6 +133,7 @@ type PlayerSeasonStatsExport struct {
 	GamesStarted *int                        `json:"gamesStarted,omitempty"`
 	Offense      *SeasonOffensiveStatsExport `json:"offense,omitempty"`
 	Defense      *SeasonDefensiveStatsExport `json:"defense,omitempty"`
+	SpecialTeams *SpecialTeamsStatsExport    `json:"specialTeams,omitempty"`
 }
 
 // SeasonOffensiveStatsExport is a season offensive stat line.
@@ -170,10 +175,23 @@ type TeamSeasonStatsExport struct {
 
 // PlayerGameStatsExport holds one player's stat line for one game.
 type PlayerGameStatsExport struct {
-	PlayerID *int                      `json:"playerId,omitempty"`
-	Player   *PlayerExport             `json:"player,omitempty"`
-	Offense  *OffensiveGameStatsExport `json:"offense,omitempty"`
-	Defense  *DefensiveGameStatsExport `json:"defense,omitempty"`
+	PlayerID     *int                      `json:"playerId,omitempty"`
+	Player       *PlayerExport             `json:"player,omitempty"`
+	Offense      *OffensiveGameStatsExport `json:"offense,omitempty"`
+	Defense      *DefensiveGameStatsExport `json:"defense,omitempty"`
+	SpecialTeams *SpecialTeamsStatsExport  `json:"specialTeams,omitempty"`
+}
+
+// SpecialTeamsStatsExport is a kick/punt return stat line (game or season).
+type SpecialTeamsStatsExport struct {
+	KickReturns       *int `json:"kickReturns,omitempty"`
+	KickReturnYards   *int `json:"kickReturnYards,omitempty"`
+	KickReturnLongest *int `json:"kickReturnLongest,omitempty"`
+	KickReturnTDs     *int `json:"kickReturnTDs,omitempty"`
+	PuntReturns       *int `json:"puntReturns,omitempty"`
+	PuntReturnYards   *int `json:"puntReturnYards,omitempty"`
+	PuntReturnLongest *int `json:"puntReturnLongest,omitempty"`
+	PuntReturnTDs     *int `json:"puntReturnTDs,omitempty"`
 }
 
 // OffensiveGameStatsExport is a single-game offensive stat line.
