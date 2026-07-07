@@ -3,7 +3,7 @@ package dynasty
 import "strings"
 
 var playerIdentityFields = []string{
-	"FirstName", "LastName", "Position", "SchoolYear", "Age", "Height", "Weight",
+	"FirstName", "LastName", "Position", "PlayerType", "SchoolYear", "Age", "Height", "Weight",
 	"OverallRating", "ProspectStarRating", "PLYR_HOME_TOWN", "PLYR_HOME_STATE",
 	"JerseyNum", "TeamIndex",
 }
@@ -25,6 +25,8 @@ func buildPlayerExport(record Record) *PlayerExport {
 			player.LastName = value.String
 		case "Position":
 			player.Position = value.String
+		case "PlayerType":
+			player.Archetype = value.String
 		case "SchoolYear":
 			player.SchoolYear = value.String
 		case "ProspectStarRating":

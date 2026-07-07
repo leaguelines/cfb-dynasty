@@ -158,6 +158,16 @@ func TestExportWithOptionsSections(t *testing.T) {
 	if len(rostersOnly.Rosters[0].Players) == 0 {
 		t.Fatal("expected players on first roster")
 	}
+	foundArchetype := false
+	for _, player := range rostersOnly.Rosters[0].Players {
+		if player.Archetype != "" {
+			foundArchetype = true
+			break
+		}
+	}
+	if !foundArchetype {
+		t.Fatal("expected at least one roster player with archetype")
+	}
 
 	recruitingOnly, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{Recruiting: true},
