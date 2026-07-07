@@ -148,12 +148,13 @@ func (f *File) attachGameStatOwners(idx *gameStatsIndex) {
 }
 
 func buildTeamStatsExport(record Record) *TeamStatsExport {
+	if len(record.Fields) == 0 {
+		return nil
+	}
 	stats := &TeamStatsExport{}
-	hasData := false
 	setTeamStat := func(dst **int, name string) {
-		if v, ok := statIntOK(record, name); ok {
+		if v, ok := gameStatIntOK(record, name); ok {
 			*dst = &v
-			hasData = true
 		}
 	}
 	setTeamStat(&stats.Wins, "WINS")
@@ -170,19 +171,17 @@ func buildTeamStatsExport(record Record) *TeamStatsExport {
 	setTeamStat(&stats.FirstDowns, "FIRSTDOWNS")
 	setTeamStat(&stats.Turnovers, "GIVEAWAYS")
 	setTeamStat(&stats.Sacks, "SACKS")
-	if !hasData {
-		return nil
-	}
 	return stats
 }
 
 func buildOffensiveGameStatsExport(record Record) *OffensiveGameStatsExport {
+	if len(record.Fields) == 0 {
+		return nil
+	}
 	stats := &OffensiveGameStatsExport{}
-	hasData := false
 	set := func(dst **int, name string) {
-		if v, ok := statIntOK(record, name); ok {
+		if v, ok := gameStatIntOK(record, name); ok {
 			*dst = &v
-			hasData = true
 		}
 	}
 	set(&stats.GameRating, "GAMERATING")
@@ -197,19 +196,17 @@ func buildOffensiveGameStatsExport(record Record) *OffensiveGameStatsExport {
 	set(&stats.RecYards, "RECEIVEYARDS")
 	set(&stats.RecTDs, "RECEIVETDS")
 	set(&stats.Receptions, "RECEIVECATCHES")
-	if !hasData {
-		return nil
-	}
 	return stats
 }
 
 func buildDefensiveGameStatsExport(record Record) *DefensiveGameStatsExport {
+	if len(record.Fields) == 0 {
+		return nil
+	}
 	stats := &DefensiveGameStatsExport{}
-	hasData := false
 	set := func(dst **int, name string) {
-		if v, ok := statIntOK(record, name); ok {
+		if v, ok := gameStatIntOK(record, name); ok {
 			*dst = &v
-			hasData = true
 		}
 	}
 	set(&stats.GameRating, "GAMERATING")
@@ -220,9 +217,6 @@ func buildDefensiveGameStatsExport(record Record) *DefensiveGameStatsExport {
 	set(&stats.ForcedFumbles, "DLINEFORCEDFUMBLES")
 	set(&stats.FumbleRecover, "DLINEFUMBLERECOVERIES")
 	set(&stats.PassDeflections, "DEFPASSDEFLECTIONS")
-	if !hasData {
-		return nil
-	}
 	return stats
 }
 

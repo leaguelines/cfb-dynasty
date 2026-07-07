@@ -34,6 +34,21 @@ func statIntOK(record Record, name string) (int, bool) {
 	return v, true
 }
 
+// gameStatIntOK reads a decoded per-game stat integer, including zero. Negative
+// values are treated as unset (EA occasionally uses sentinels). Missing fields
+// are rejected so callers can still omit stats not present on the row schema.
+func gameStatIntOK(record Record, name string) (int, bool) {
+	value, ok := record.Get(name)
+	if !ok {
+		return 0, false
+	}
+	v := int(value.Int)
+	if v < 0 {
+		return 0, false
+	}
+	return v, true
+}
+
 func stringField(record Record, name string) string {
 	value, ok := record.Get(name)
 	if !ok {
