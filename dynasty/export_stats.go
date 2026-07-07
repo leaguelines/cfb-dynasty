@@ -1,9 +1,19 @@
 package dynasty
 
-// gameStatsIndex groups per-game stat rows by SeasonGame index.
+// gameStatsIndex groups per-game stat rows by SeasonGame index and links each
+// stat row back to the player that owns it.
+//
+// Game-stat rows (GameOffensiveStats/GameDefensiveStats) carry no player
+// reference of their own — the ownership lives on the Player side. Every Player
+// has a GameStats reference into a "GameStats[]" array store whose elements point
+// at that player's individual game-stat rows. offOwners/defOwners invert those
+// arrays so each stat row can be attributed to its player.
 type gameStatsIndex struct {
-	offense [][]Record
-	defense [][]Record
+	offense   [][]Record
+	defense   [][]Record
+	offOwners map[int]int // GameOffensiveStats row index -> Player row index
+	defOwners map[int]int // GameDefensiveStats row index -> Player row index
+	players   []Record    // Player rows indexed by row number
 }
 
 func (f *File) buildGameStatsIndex(gameCount int) (gameStatsIndex, error) {
@@ -15,13 +25,25 @@ func (f *File) buildGameStatsIndex(gameCount int) (gameStatsIndex, error) {
 		return idx, nil
 	}
 
+	// Only rows that reference the current SeasonGame table belong to this
+	// season. Stat rows for other seasons / cut players use a local reference
+	// (TableID 0) whose row index no longer maps to a valid game, so require the
+	// reference to target the SeasonGame table explicitly.
+	var seasonGameID uint32
+	if sg, ok := f.PrimaryTableByName("SeasonGame"); ok {
+		seasonGameID = sg.Header.TableID
+	}
+	belongsToSeason := func(ref *RecordReference) bool {
+		return ref != nil && seasonGameID != 0 && ref.TableID == seasonGameID
+	}
+
 	if off, ok := f.PrimaryTableByName("GameOffensiveStats"); ok {
 		if err := off.ReadRecords(); err != nil {
 			return idx, err
 		}
 		for _, record := range off.Records {
 			ref, ok := record.Get("SeasonGame")
-			if !ok || ref.Reference == nil {
+			if !ok || !belongsToSeason(ref.Reference) {
 				continue
 			}
 			gameIdx, ok := GameIndexFromStatReference(ref.Reference, gameCount)
@@ -38,7 +60,7 @@ func (f *File) buildGameStatsIndex(gameCount int) (gameStatsIndex, error) {
 		}
 		for _, record := range def.Records {
 			ref, ok := record.Get("SeasonGame")
-			if !ok || ref.Reference == nil {
+			if !ok || !belongsToSeason(ref.Reference) {
 				continue
 			}
 			gameIdx, ok := GameIndexFromStatReference(ref.Reference, gameCount)
@@ -49,7 +71,80 @@ func (f *File) buildGameStatsIndex(gameCount int) (gameStatsIndex, error) {
 		}
 	}
 
+	f.attachGameStatOwners(&idx)
+
 	return idx, nil
+}
+
+// attachGameStatOwners walks each Player's GameStats[] array store and records,
+// for every referenced game-stat row, which player owns it. Row references are
+// direct record indices (RowNumber == Record.Index) into the stat tables.
+func (f *File) attachGameStatOwners(idx *gameStatsIndex) {
+	playerTable, ok := f.PrimaryTableByName("Player")
+	if !ok || playerTable == nil {
+		return
+	}
+	if err := playerTable.ReadRecords(); err != nil {
+		return
+	}
+	idx.players = playerTable.Records
+
+	off, offOK := f.PrimaryTableByName("GameOffensiveStats")
+	def, defOK := f.PrimaryTableByName("GameDefensiveStats")
+	if !offOK && !defOK {
+		return
+	}
+	var offID, defID uint32
+	if offOK {
+		offID = off.Header.TableID
+	}
+	if defOK {
+		defID = def.Header.TableID
+	}
+
+	idx.offOwners = make(map[int]int)
+	idx.defOwners = make(map[int]int)
+
+	for _, player := range playerTable.Records {
+		gs, ok := player.Get("GameStats")
+		if !ok || gs.Reference == nil {
+			continue
+		}
+		if gs.Reference.TableID == 0 && gs.Reference.RowNumber == 0 {
+			continue
+		}
+		arrTable, ok := f.GetTableByID(gs.Reference.TableID)
+		if !ok || arrTable == nil {
+			continue
+		}
+		if err := arrTable.ReadRecords(); err != nil {
+			continue
+		}
+		rowIdx := int(gs.Reference.RowNumber)
+		if rowIdx < 0 || rowIdx >= len(arrTable.Records) {
+			continue
+		}
+		for _, value := range arrTable.Records[rowIdx].Fields {
+			if value.Reference == nil {
+				continue
+			}
+			row := int(value.Reference.RowNumber)
+			switch {
+			case offOK && value.Reference.TableID == offID:
+				if row >= 0 && row < len(off.Records) {
+					if _, exists := idx.offOwners[row]; !exists {
+						idx.offOwners[row] = player.Index
+					}
+				}
+			case defOK && value.Reference.TableID == defID:
+				if row >= 0 && row < len(def.Records) {
+					if _, exists := idx.defOwners[row]; !exists {
+						idx.defOwners[row] = player.Index
+					}
+				}
+			}
+		}
+	}
 }
 
 func buildTeamStatsExport(record Record) *TeamStatsExport {
@@ -138,24 +233,51 @@ func buildPlayerGameStatsExports(gameIdx int, idx gameStatsIndex) []PlayerGameSt
 		return nil
 	}
 
-	slotCount := len(offRows)
-	if len(defRows) > slotCount {
-		slotCount = len(defRows)
-	}
-	out := make([]PlayerGameStatsExport, 0, slotCount)
-	for slot := 0; slot < slotCount; slot++ {
-		entry := PlayerGameStatsExport{Slot: slot}
-		if slot < len(offRows) {
-			entry.Offense = buildOffensiveGameStatsExport(offRows[slot])
+	out := make([]PlayerGameStatsExport, 0, len(offRows)+len(defRows))
+	byPlayer := make(map[int]int, len(offRows)+len(defRows))
+
+	// entryFor returns the index into out for a stat line. Owned lines are keyed
+	// by player index so a player's offense and defense merge into one entry;
+	// ownerless lines each get their own entry so distinct rows never collapse.
+	entryFor := func(playerIdx int, owned bool) int {
+		if owned {
+			if pos, exists := byPlayer[playerIdx]; exists {
+				return pos
+			}
 		}
-		if slot < len(defRows) {
-			entry.Defense = buildDefensiveGameStatsExport(defRows[slot])
-		}
-		if entry.Offense == nil && entry.Defense == nil {
-			continue
+		entry := PlayerGameStatsExport{}
+		if owned {
+			id := playerIdx
+			entry.PlayerID = &id
+			if playerIdx >= 0 && playerIdx < len(idx.players) {
+				entry.Player = buildStatPlayerIdentity(idx.players[playerIdx])
+			}
 		}
 		out = append(out, entry)
+		pos := len(out) - 1
+		if owned {
+			byPlayer[playerIdx] = pos
+		}
+		return pos
 	}
+
+	for _, record := range offRows {
+		offense := buildOffensiveGameStatsExport(record)
+		if offense == nil {
+			continue
+		}
+		playerIdx, owned := idx.offOwners[record.Index]
+		out[entryFor(playerIdx, owned)].Offense = offense
+	}
+	for _, record := range defRows {
+		defense := buildDefensiveGameStatsExport(record)
+		if defense == nil {
+			continue
+		}
+		playerIdx, owned := idx.defOwners[record.Index]
+		out[entryFor(playerIdx, owned)].Defense = defense
+	}
+
 	if len(out) == 0 {
 		return nil
 	}

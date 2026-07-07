@@ -83,6 +83,30 @@ func buildPlayerExport(record Record) *PlayerExport {
 	return player
 }
 
+// buildStatPlayerIdentity returns a lightweight PlayerExport used to label a
+// stat line. It carries only identity fields (name, position, jersey, team) so
+// per-game stats stay attributable without repeating the player's full ratings
+// on every line — join on the player id for the full record.
+func buildStatPlayerIdentity(record Record) *PlayerExport {
+	if len(record.Fields) == 0 {
+		return nil
+	}
+	player := &PlayerExport{ID: record.Index}
+	player.FirstName = stringField(record, "FirstName")
+	player.LastName = stringField(record, "LastName")
+	player.Position = stringField(record, "Position")
+	if v, ok := record.Get("JerseyNum"); ok {
+		setIntPtr(&player.Jersey, v.Int)
+	}
+	if v, ok := record.Get("TeamIndex"); ok {
+		setIntPtr(&player.TeamIndex, v.Int)
+	}
+	if player.FirstName == "" && player.LastName == "" {
+		return nil
+	}
+	return player
+}
+
 func setIntPtr(dst **int, value int64) {
 	if value == 0 {
 		return

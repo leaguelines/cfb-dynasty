@@ -48,18 +48,18 @@ func referenceRowCandidates(rowNumber uint32, recordCount int) []int {
 	return out
 }
 
-// GameIndexFromStatReference maps a stat row's SeasonGame reference to a SeasonGame row index.
+// GameIndexFromStatReference maps a stat row's SeasonGame reference to a
+// SeasonGame row index. The reference RowNumber is a direct 0-based record index
+// into the SeasonGame table (RowNumber == Record.Index), so out-of-range values
+// (e.g. stale references to games from other seasons) are rejected rather than
+// wrapped into a valid game.
 func GameIndexFromStatReference(ref *RecordReference, gameCount int) (int, bool) {
 	if ref == nil || gameCount <= 0 {
 		return 0, false
 	}
-	idx := int(ref.RowNumber) - 1
-	if idx < 0 {
-		idx = int(ref.RowNumber)
-	}
-	if idx < 0 {
+	idx := int(ref.RowNumber)
+	if idx < 0 || idx >= gameCount {
 		return 0, false
 	}
-	idx = idx % gameCount
 	return idx, true
 }

@@ -68,23 +68,22 @@ func isOfficialTeamName(name string) bool {
 	return true
 }
 
-func isUsableTeamShortName(short, long string) bool {
-	if !isOfficialTeamName(short) {
-		return false
-	}
-	// CFB saves currently reuse a stale ShortName decode for many schools.
-	if short == "AIRFOR" && long != "Air Force" {
-		return false
-	}
-	return true
-}
-
 func isEmptyReference(record Record, field string) bool {
 	value, ok := record.Get(field)
 	if !ok || value.Reference == nil {
 		return true
 	}
 	return value.Reference.TableID == 0 && value.Reference.RowNumber == 0
+}
+
+// recordIsActive reports whether a parsed row is within the table's currently
+// allocated range. Rows at or beyond NextRecordToUse are stale slots that still
+// decode (often to placeholder strings) and must not be exported.
+func recordIsActive(record Record, table *Table) bool {
+	if table == nil {
+		return true
+	}
+	return record.Index < int(table.ActiveRecordCount())
 }
 
 func schemaVersionCopy(v SchemaVersion) *SchemaVersion {

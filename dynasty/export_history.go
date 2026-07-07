@@ -12,6 +12,9 @@ func (f *File) buildPlayerAwardExports() ([]PlayerAwardExport, error) {
 
 	exports := make([]PlayerAwardExport, 0, awardTable.ActiveRecordCount())
 	for _, record := range awardTable.Records {
+		if !recordIsActive(record, awardTable) {
+			continue
+		}
 		awardType := stringField(record, "AwardType")
 		if awardType == "" {
 			continue
@@ -78,6 +81,9 @@ func (f *File) buildLeagueHistoryAwardExports() ([]LeagueHistoryAwardExport, err
 
 	exports := make([]LeagueHistoryAwardExport, 0, awardTable.ActiveRecordCount())
 	for _, record := range awardTable.Records {
+		if !recordIsActive(record, awardTable) {
+			continue
+		}
 		export := LeagueHistoryAwardExport{
 			ID:              record.Index,
 			FirstName:       stringField(record, "firstName"),
@@ -110,6 +116,9 @@ func (f *File) buildConferenceChampionExports() ([]ConferenceChampionExport, err
 
 	exports := make([]ConferenceChampionExport, 0, champTable.ActiveRecordCount())
 	for _, record := range champTable.Records {
+		if !recordIsActive(record, champTable) {
+			continue
+		}
 		winner := stringField(record, "WinningTeamName")
 		if winner == "" {
 			winner = f.teamNameFromField(record, "WinningTeamIdentity")
@@ -147,43 +156,3 @@ func (f *File) buildConferenceChampionExports() ([]ConferenceChampionExport, err
 	return exports, nil
 }
 
-// buildStatRecordExports decodes statistical record book entries.
-func (f *File) buildStatRecordExports() ([]StatRecordExport, error) {
-	recordTable, ok := f.PrimaryTableByName("PlayerStatRecord")
-	if !ok {
-		return nil, nil
-	}
-	if err := recordTable.ReadRecords(); err != nil {
-		return nil, err
-	}
-
-	exports := make([]StatRecordExport, 0, recordTable.ActiveRecordCount())
-	for _, record := range recordTable.Records {
-		statType := stringField(record, "statType")
-		if statType == "" {
-			continue
-		}
-		value, ok := seasonStatIntOK(record, "statValue")
-		if !ok {
-			continue
-		}
-
-		export := StatRecordExport{
-			ID:        record.Index,
-			FirstName: stringField(record, "firstName"),
-			LastName:  stringField(record, "lastName"),
-			Position:  stringField(record, "position"),
-			TeamName:  stringField(record, "teamName"),
-			StatType:  statType,
-			StatValue: &value,
-		}
-		if export.TeamName == "" {
-			export.TeamName = f.teamNameFromField(record, "TeamRef")
-		}
-		if year, ok := intFieldOK(record, "calendarYear"); ok && year > 1900 && year < 2100 {
-			export.CalendarYear = &year
-		}
-		exports = append(exports, export)
-	}
-	return exports, nil
-}

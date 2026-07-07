@@ -77,8 +77,8 @@ func TestExportRecruitsAndStats(t *testing.T) {
 	if len(export.PlayerAwards) == 0 {
 		t.Fatal("expected player awards in export")
 	}
-	if len(export.StatRecords) == 0 {
-		t.Fatal("expected stat records in export")
+	if len(export.RecordBook) == 0 {
+		t.Fatal("expected record book in export")
 	}
 
 	withPlayer := 0
@@ -284,8 +284,8 @@ func TestExportWithOptionsSections(t *testing.T) {
 	if len(historyOnly.PlayerAwards) == 0 {
 		t.Fatal("expected player awards")
 	}
-	if len(historyOnly.StatRecords) == 0 {
-		t.Fatal("expected stat records")
+	if len(historyOnly.RecordBook) == 0 {
+		t.Fatal("expected record book")
 	}
 }
 
@@ -307,10 +307,15 @@ func TestExportOptionsDefaults(t *testing.T) {
 }
 
 func TestGameIndexFromStatReference(t *testing.T) {
-	ref := &RecordReference{TableID: 0, RowNumber: 101}
+	// RowNumber is a direct 0-based SeasonGame record index.
+	ref := &RecordReference{TableID: 6330, RowNumber: 101}
 	idx, ok := GameIndexFromStatReference(ref, 983)
-	if !ok || idx != 100 {
-		t.Fatalf("idx=%d ok=%v want 100", idx, ok)
+	if !ok || idx != 101 {
+		t.Fatalf("idx=%d ok=%v want 101", idx, ok)
+	}
+	// Out-of-range references are rejected rather than wrapped.
+	if _, ok := GameIndexFromStatReference(&RecordReference{RowNumber: 983}, 983); ok {
+		t.Fatal("expected out-of-range reference to be rejected")
 	}
 }
 

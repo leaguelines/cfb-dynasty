@@ -128,11 +128,11 @@ func (f *File) buildExport(opts ExportOptions) (Export, error) {
 		}
 		export.ConferenceChampions = champions
 
-		statRecords, err := f.buildStatRecordExports()
+		recordBook, err := f.buildRecordBookExports()
 		if err != nil {
 			return Export{}, err
 		}
-		export.StatRecords = statRecords
+		export.RecordBook = recordBook
 	}
 
 	if opts.IncludeSeason() {

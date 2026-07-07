@@ -24,7 +24,7 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 			LongName:    longName,
 			DisplayName: stringField(record, "DisplayName"),
 		}
-		if short := stringField(record, "ShortName"); isUsableTeamShortName(short, longName) {
+		if short := stringField(record, "ShortName"); isOfficialTeamName(short) {
 			export.ShortName = short
 		}
 		if conf, ok := conferenceByTeam[record.Index]; ok {
@@ -92,20 +92,30 @@ func (f *File) buildConferenceByTeamIndex() map[int]string {
 		if err := slotTable.ReadRecords(); err != nil {
 			continue
 		}
-		for _, idx := range referenceRowCandidates(slots.Reference.RowNumber, len(slotTable.Records)) {
-			slotRecord := slotTable.Records[idx]
-			for _, value := range slotRecord.Fields {
-				if value.Reference == nil {
-					continue
-				}
-				if value.Reference.TableID != 0 && value.Reference.TableID != teamID {
-					continue
-				}
-				for _, teamIdx := range referenceRowCandidates(value.Reference.RowNumber, len(teamTable.Records)) {
-					if _, exists := out[teamIdx]; !exists {
-						out[teamIdx] = confName
-					}
-				}
+		// The conference's TeamSlots reference resolves to exactly one row of the
+		// Team[] array store; each populated element is a direct Team row index.
+		// Row numbers map 1:1 to record indices here, so resolve exactly rather
+		// than with fuzzy neighbor candidates (which would cross-assign teams).
+		slotIdx := int(slots.Reference.RowNumber)
+		if slotIdx < 0 || slotIdx >= len(slotTable.Records) {
+			continue
+		}
+		for _, value := range slotTable.Records[slotIdx].Fields {
+			if value.Reference == nil {
+				continue
+			}
+			// Only real Team references count; empty array slots decode to a
+			// zeroed reference (TableID 0, RowNumber 0) that must be skipped so
+			// team index 0 is not spuriously assigned to a conference.
+			if value.Reference.TableID != teamID {
+				continue
+			}
+			teamIdx := int(value.Reference.RowNumber)
+			if teamIdx < 0 || teamIdx >= len(teamTable.Records) {
+				continue
+			}
+			if _, exists := out[teamIdx]; !exists {
+				out[teamIdx] = confName
 			}
 		}
 	}

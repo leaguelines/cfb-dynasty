@@ -133,7 +133,7 @@ cfb-dynasty export -schema-dir ./schemas --games --no-game-stats /path/to/Dynast
 | `--leaving-players` | `leavingPlayers` | Graduation / exit pipeline |
 | `--injuries` | `injuries` | Active injuries |
 | `--depth-charts` | `depthCharts` | Depth chart slots by team |
-| `--history` | `playerAwards`, `leagueAwards`, `conferenceChampions`, `statRecords` | Awards and record book |
+| `--history` | `playerAwards`, `leagueAwards`, `conferenceChampions`, `recordBook` | Awards and the full stat record book |
 
 Additional flags:
 
@@ -169,6 +169,47 @@ CFB 27). Rather than guess at labels, the export intentionally leaves the slots
 unnamed until definitive names are available. Note also that only the per-group
 *cap* is known — the individual ratings inside each group are tuning-driven and
 not in the save.
+
+### Per-game player stats
+
+When game stats are included (`--games`, on by default), each game carries a
+`playerGameStats` list. Each entry is one player's line for that game:
+
+- `playerId` — the player's row index (join to `rosters` for the full record).
+- `player` — a lightweight identity (`firstName`, `lastName`, `position`,
+  `jersey`, `teamIndex`) so lines are readable without a join.
+- `offense` / `defense` — the stat line(s); a player with both merges into one entry.
+
+The game-stat rows themselves store no player reference — ownership lives on the
+`Player` side via a `GameStats[]` array store that points at each player's rows.
+The exporter inverts those arrays to attribute every stat line, and rows are
+bucketed into games by their direct `SeasonGame` record index (stale references
+to other seasons are dropped).
+
+### Record book
+
+`--history` exports the complete stat record book as a flat `recordBook` list.
+The game keeps a record book for three **scopes** — the whole FBS (`league`),
+each `conference`, and every `team` — and three **periods** (`career`, `season`,
+`game`). Each entry carries:
+
+- `scope` — `league`, `conference`, or `team`.
+- `scopeName` — the conference or team the board belongs to (empty for league).
+- `period` — `career`, `season`, or `game`.
+- `statType`, `statValue`, `rank` — the record and its rank within the board.
+- `firstName`, `lastName`, `position`, `teamName`, `calendarYear` — the holder.
+
+League boards are ranked top-N per category; conference and team boards store a
+single holder (`rank` 1) per category. Positions come straight from the record
+row when present and are otherwise inferred from the stat category (the game
+leaves lower league ranks at the schema default).
+
+```bash
+# Every team's career passing-yards record holder
+cfb-dynasty export -schema-dir ./schemas --history /path/to/Dynasty1.sav | \
+  jq '.recordBook[] | select(.scope=="team" and .period=="career" and .statType=="PassYards") |
+      {team: .scopeName, holder: "\(.firstName) \(.lastName)", yards: .statValue}'
+```
 
 ## Library
 
