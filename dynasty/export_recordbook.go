@@ -188,11 +188,22 @@ func (f *File) recordBookEntriesFromStruct(ref *RecordReference, scope, scopeNam
 	return out
 }
 
-// recordHolderTeam returns the record holder's team name, preferring the stored
-// teamName and falling back to resolving the TeamRef.
+// recordHolderTeam returns the record holder's team name. It trusts the stored
+// teamName first and otherwise resolves only an explicit Team-table reference.
+//
+// League boards store a full identity (teamName + an explicit TeamRef) for the
+// rank-1 holder only; ranks 2..N leave teamName empty and carry an
+// uninitialized local TeamRef (TableID 0) that resolves by row index to an
+// unrelated team (e.g. Sam Bradford -> "Hawai'i"). Such refs are ignored so a
+// missing team stays empty rather than wrong.
 func (f *File) recordHolderTeam(record Record) string {
 	if name := stringField(record, "teamName"); name != "" {
 		return name
 	}
-	return f.teamNameFromField(record, "TeamRef")
+	if v, ok := record.Get("TeamRef"); ok && v.Reference != nil && v.Reference.TableID != 0 {
+		if team, ok := f.RecordByReference("Team", v.Reference); ok {
+			return bestTeamName(team)
+		}
+	}
+	return ""
 }
