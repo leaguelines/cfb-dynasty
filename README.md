@@ -143,6 +143,15 @@ Additional flags:
 
 Run `cfb-dynasty -h` or `cfb-dynasty export -h` for full usage.
 
+### Team IDs
+
+Exported `teamId` / `teams[].id` / `player.teamIndex` values are the game's
+stable `Team.TeamIndex` IDs (Akron = 1, Alabama = 2, … Sacramento State = 137),
+not the Team table row order. Newer programs keep high TeamIndex values while
+sitting earlier in the table (for example Appalachian State is row 3 with id
+125), so row numbers must not be used as join keys. Air Force is id `0`. FCS
+placeholder slots (`TeamIndex` 255) are omitted.
+
 ### Example: recruits with `jq`
 
 ```bash

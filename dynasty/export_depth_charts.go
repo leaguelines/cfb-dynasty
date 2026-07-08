@@ -12,7 +12,7 @@ func (f *File) buildDepthChartExports() ([]DepthChartExport, error) {
 		return nil, err
 	}
 
-	teamNames := f.teamNameByIndex()
+	teams := f.teamMaps()
 	byTeam := make(map[int]*DepthChartExport)
 
 	for _, record := range depthTable.Records {
@@ -20,8 +20,12 @@ func (f *File) buildDepthChartExports() ([]DepthChartExport, error) {
 		if !ok {
 			continue
 		}
-		teamID, ok := intFieldOK(player, "TeamIndex")
-		if !ok || teamID <= 0 {
+		row, ok := intFieldOK(player, "TeamIndex")
+		if !ok {
+			continue
+		}
+		teamID, ok := teams.exportID(row)
+		if !ok {
 			continue
 		}
 
@@ -29,7 +33,7 @@ func (f *File) buildDepthChartExports() ([]DepthChartExport, error) {
 		if !ok {
 			chart = &DepthChartExport{
 				TeamID:   teamID,
-				TeamName: teamNames[teamID],
+				TeamName: teams.nameFromID(teamID),
 			}
 			byTeam[teamID] = chart
 		}

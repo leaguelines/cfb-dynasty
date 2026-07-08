@@ -19,8 +19,13 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 			continue
 		}
 
+		teamID, ok := teamIDFromRecord(record)
+		if !ok {
+			continue
+		}
+
 		export := TeamExport{
-			ID:          record.Index,
+			ID:          teamID,
 			LongName:    longName,
 			DisplayName: stringField(record, "DisplayName"),
 		}

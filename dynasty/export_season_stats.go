@@ -31,6 +31,7 @@ func (f *File) buildPlayerSeasonStatsExports() ([]PlayerSeasonStatsExport, error
 	}
 
 	specialByPlayer := f.buildSeasonSpecialTeamsByPlayer()
+	teams := f.teamMaps()
 
 	exports := make([]PlayerSeasonStatsExport, 0, rowCount/4)
 	for idx := 0; idx < rowCount; idx++ {
@@ -55,7 +56,7 @@ func (f *File) buildPlayerSeasonStatsExports() ([]PlayerSeasonStatsExport, error
 		}
 		applySeasonPlayerMeta(&export, offRecord, defRecord)
 		if playerTable != nil && idx < len(playerTable.Records) {
-			applyPlayerIdentityToSeasonStats(&export, playerTable.Records[idx])
+			applyPlayerIdentityToSeasonStats(&export, playerTable.Records[idx], teams)
 		}
 		if special, ok := specialByPlayer[idx]; ok {
 			export.SpecialTeams = special
@@ -155,11 +156,13 @@ func applySeasonPlayerMeta(export *PlayerSeasonStatsExport, offRecord, defRecord
 	}
 }
 
-func applyPlayerIdentityToSeasonStats(export *PlayerSeasonStatsExport, player Record) {
+func applyPlayerIdentityToSeasonStats(export *PlayerSeasonStatsExport, player Record, teams teamIndexMaps) {
 	export.FirstName = stringField(player, "FirstName")
 	export.LastName = stringField(player, "LastName")
-	if teamID, ok := intFieldOK(player, "TeamIndex"); ok && teamID > 0 {
-		export.TeamID = &teamID
+	if row, ok := intFieldOK(player, "TeamIndex"); ok {
+		if teamID, ok := teams.exportID(row); ok {
+			export.TeamID = &teamID
+		}
 	}
 }
 
@@ -245,6 +248,10 @@ func (f *File) buildTeamSeasonStatsExports() ([]TeamSeasonStatsExport, error) {
 		if !isOfficialTeamName(longName) {
 			continue
 		}
+		teamID, ok := teamIDFromRecord(team)
+		if !ok {
+			continue
+		}
 		if team.Index >= len(statsTable.Records) {
 			continue
 		}
@@ -253,7 +260,7 @@ func (f *File) buildTeamSeasonStatsExports() ([]TeamSeasonStatsExport, error) {
 			continue
 		}
 		exports = append(exports, TeamSeasonStatsExport{
-			TeamID:   team.Index,
+			TeamID:   teamID,
 			TeamName: longName,
 			Stats:    stats,
 		})

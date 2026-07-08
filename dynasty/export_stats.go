@@ -19,6 +19,7 @@ type gameStatsIndex struct {
 	kpOffID     uint32
 	kpDefID     uint32
 	players     []Record // Player rows indexed by row number
+	teams       teamIndexMaps
 }
 
 // kpStatRow is a kick/punt return stat row tagged with its source table so it
@@ -131,6 +132,7 @@ func (f *File) attachGameStatOwners(idx *gameStatsIndex) {
 		return
 	}
 	idx.players = playerTable.Records
+	idx.teams = f.teamMaps()
 
 	off, offOK := f.PrimaryTableByName("GameOffensiveStats")
 	def, defOK := f.PrimaryTableByName("GameDefensiveStats")
@@ -344,7 +346,7 @@ func buildPlayerGameStatsExports(gameIdx int, idx gameStatsIndex) []PlayerGameSt
 			id := playerIdx
 			entry.PlayerID = &id
 			if playerIdx >= 0 && playerIdx < len(idx.players) {
-				entry.Player = buildStatPlayerIdentity(idx.players[playerIdx])
+				entry.Player = buildStatPlayerIdentity(idx.players[playerIdx], idx.teams)
 			}
 		}
 		out = append(out, entry)

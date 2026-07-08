@@ -12,6 +12,7 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 
 	exports := make([]RecruitExport, 0, recruitTable.ActiveRecordCount())
 	active := int(recruitTable.ActiveRecordCount())
+	teams := f.teamMaps()
 	for _, record := range recruitTable.Records {
 		if record.Index >= active {
 			continue
@@ -33,6 +34,7 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 		if playerRef, ok := record.Get("Player"); ok && playerRef.Reference != nil {
 			if playerRecord, _, ok := f.playerRecordByReference(playerRef.Reference); ok {
 				export.Player = buildPlayerExport(playerRecord)
+				applyCanonicalTeamIndex(export.Player, teams)
 			}
 		}
 

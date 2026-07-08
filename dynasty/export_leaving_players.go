@@ -10,7 +10,7 @@ func (f *File) buildLeavingPlayerExports() ([]LeavingPlayerExport, error) {
 		return nil, err
 	}
 
-	teamNames := f.teamNameByIndex()
+	teams := f.teamMaps()
 
 	exports := make([]LeavingPlayerExport, 0, leaveTable.ActiveRecordCount())
 	for _, record := range leaveTable.Records {
@@ -35,9 +35,11 @@ func (f *File) buildLeavingPlayerExports() ([]LeavingPlayerExport, error) {
 			export.FirstName = stringField(player, "FirstName")
 			export.LastName = stringField(player, "LastName")
 			export.Position = stringField(player, "Position")
-			if teamID, ok := intFieldOK(player, "TeamIndex"); ok && teamID > 0 {
-				export.TeamID = &teamID
-				export.TeamName = teamNames[teamID]
+			if row, ok := intFieldOK(player, "TeamIndex"); ok {
+				if teamID, ok := teams.exportID(row); ok {
+					export.TeamID = &teamID
+					export.TeamName = teams.nameFromID(teamID)
+				}
 			}
 		}
 
