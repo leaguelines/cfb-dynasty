@@ -48,7 +48,10 @@ func buildPlayerExport(record Record) *PlayerExport {
 		case "JerseyNum":
 			setIntPtr(&player.Jersey, value.Int)
 		case "TeamIndex":
-			setIntPtr(&player.TeamIndex, value.Int)
+			// Raw save value is a Team table row (including 0 for Air Force);
+			// callers remap via teamMaps so consumers see the stable Team.TeamIndex.
+			v := int(value.Int)
+			player.TeamIndex = &v
 		}
 	}
 
@@ -83,11 +86,25 @@ func buildPlayerExport(record Record) *PlayerExport {
 	return player
 }
 
+// applyCanonicalTeamIndex rewrites player.TeamIndex from a Team table row
+// number to the stable Team.TeamIndex ID. Clears the field when the row is
+// missing or an FCS placeholder.
+func applyCanonicalTeamIndex(player *PlayerExport, teams teamIndexMaps) {
+	if player == nil || player.TeamIndex == nil {
+		return
+	}
+	if id, ok := teams.exportID(*player.TeamIndex); ok {
+		player.TeamIndex = &id
+		return
+	}
+	player.TeamIndex = nil
+}
+
 // buildStatPlayerIdentity returns a lightweight PlayerExport used to label a
 // stat line. It carries only identity fields (name, position, jersey, team) so
 // per-game stats stay attributable without repeating the player's full ratings
 // on every line — join on the player id for the full record.
-func buildStatPlayerIdentity(record Record) *PlayerExport {
+func buildStatPlayerIdentity(record Record, teams teamIndexMaps) *PlayerExport {
 	if len(record.Fields) == 0 {
 		return nil
 	}
@@ -99,7 +116,9 @@ func buildStatPlayerIdentity(record Record) *PlayerExport {
 		setIntPtr(&player.Jersey, v.Int)
 	}
 	if v, ok := record.Get("TeamIndex"); ok {
-		setIntPtr(&player.TeamIndex, v.Int)
+		row := int(v.Int)
+		player.TeamIndex = &row
+		applyCanonicalTeamIndex(player, teams)
 	}
 	if player.FirstName == "" && player.LastName == "" {
 		return nil

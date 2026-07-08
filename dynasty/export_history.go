@@ -37,15 +37,18 @@ func (f *File) buildPlayerAwardExports() ([]PlayerAwardExport, error) {
 		export.TeamName = f.teamNameFromField(record, "Team")
 		if export.TeamName == "" {
 			if player, _, ok := f.playerRecordFromField(record, "Player"); ok {
-				if teamID, ok := intFieldOK(player, "TeamIndex"); ok && teamID > 0 {
-					export.TeamID = &teamID
-					if names := f.teamNameByIndex(); names != nil {
-						export.TeamName = names[teamID]
+				if row, ok := intFieldOK(player, "TeamIndex"); ok {
+					teams := f.teamMaps()
+					if teamID, ok := teams.exportID(row); ok {
+						export.TeamID = &teamID
+						export.TeamName = teams.nameFromID(teamID)
 					}
 				}
 			}
 		} else if team, ok := f.teamRecordFromName(export.TeamName); ok {
-			export.TeamID = &team.Index
+			if teamID, ok := teamIDFromRecord(team); ok {
+				export.TeamID = &teamID
+			}
 		}
 
 		exports = append(exports, export)
@@ -155,4 +158,3 @@ func (f *File) buildConferenceChampionExports() ([]ConferenceChampionExport, err
 	}
 	return exports, nil
 }
-

@@ -10,7 +10,7 @@ func (f *File) buildCoachExports() ([]CoachExport, error) {
 		return nil, err
 	}
 
-	teamNames := f.teamNameByIndex()
+	teams := f.teamMaps()
 
 	exports := make([]CoachExport, 0, coachTable.ActiveRecordCount())
 	for _, record := range coachTable.Records {
@@ -34,9 +34,11 @@ func (f *File) buildCoachExports() ([]CoachExport, error) {
 			IsUserControlled: boolField(record, "IsUserControlled"),
 		}
 
-		if teamID, ok := intFieldOK(record, "TeamIndex"); ok && teamID > 0 {
-			export.TeamID = &teamID
-			export.TeamName = teamNames[teamID]
+		if row, ok := intFieldOK(record, "TeamIndex"); ok {
+			if teamID, ok := teams.exportID(row); ok {
+				export.TeamID = &teamID
+				export.TeamName = teams.nameFromID(teamID)
+			}
 		}
 
 		setOptionalPositiveInt(record, "Age", &export.Age)

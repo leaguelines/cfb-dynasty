@@ -23,7 +23,7 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 	if schoolTable != nil {
 		_ = schoolTable.ReadRecords()
 	}
-	teamNames := f.teamNameByIndex()
+	teams := f.teamMaps()
 
 	exports := make([]RecruitingTargetExport, 0, recruitTable.ActiveRecordCount())
 	active := int(recruitTable.ActiveRecordCount())
@@ -36,7 +36,7 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 		}
 
 		export := RecruitingTargetExport{RecruitID: record.Index}
-		export.TopSchool = topSchoolInterest(record, schoolTable, teamNames)
+		export.TopSchool = topSchoolInterest(record, schoolTable, teams)
 
 		if targetTable != nil && record.Index < len(targetTable.Records) {
 			applyRecruitTargetFields(&export, targetTable.Records[record.Index], f)
@@ -53,7 +53,7 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 	return exports, nil
 }
 
-func topSchoolInterest(recruit Record, schoolTable *Table, teamNames map[int]string) *RecruitingSchoolInterestExport {
+func topSchoolInterest(recruit Record, schoolTable *Table, teams teamIndexMaps) *RecruitingSchoolInterestExport {
 	if schoolTable == nil {
 		return nil
 	}
@@ -65,12 +65,16 @@ func topSchoolInterest(recruit Record, schoolTable *Table, teamNames map[int]str
 	if idx < 0 || idx >= len(schoolTable.Records) {
 		return nil
 	}
-	return buildSchoolInterestExport(schoolTable.Records[idx], teamNames)
+	return buildSchoolInterestExport(schoolTable.Records[idx], teams)
 }
 
-func buildSchoolInterestExport(record Record, teamNames map[int]string) *RecruitingSchoolInterestExport {
-	teamID, ok := intFieldOK(record, "TeamId")
-	if !ok || teamID <= 0 {
+func buildSchoolInterestExport(record Record, teams teamIndexMaps) *RecruitingSchoolInterestExport {
+	row, ok := intFieldOK(record, "TeamId")
+	if !ok {
+		return nil
+	}
+	teamID, ok := teams.exportID(row)
+	if !ok {
 		return nil
 	}
 	influence, _ := intFieldOK(record, "TeamInfluence")
@@ -79,7 +83,7 @@ func buildSchoolInterestExport(record Record, teamNames map[int]string) *Recruit
 	}
 	return &RecruitingSchoolInterestExport{
 		TeamID:    teamID,
-		TeamName:  teamNames[teamID],
+		TeamName:  teams.nameFromID(teamID),
 		Influence: influence,
 	}
 }

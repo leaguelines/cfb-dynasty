@@ -10,7 +10,7 @@ func (f *File) buildInjuryExports() ([]InjuryExport, error) {
 		return nil, err
 	}
 
-	teamNames := f.teamNameByIndex()
+	teams := f.teamMaps()
 
 	exports := make([]InjuryExport, 0, injuryTable.ActiveRecordCount())
 	for _, record := range injuryTable.Records {
@@ -31,15 +31,19 @@ func (f *File) buildInjuryExports() ([]InjuryExport, error) {
 			export.PlayerID = playerID
 			export.FirstName = stringField(player, "FirstName")
 			export.LastName = stringField(player, "LastName")
-			if teamID, ok := intFieldOK(player, "TeamIndex"); ok && teamID > 0 {
-				export.TeamID = &teamID
-				export.TeamName = teamNames[teamID]
+			if row, ok := intFieldOK(player, "TeamIndex"); ok {
+				if teamID, ok := teams.exportID(row); ok {
+					export.TeamID = &teamID
+					export.TeamName = teams.nameFromID(teamID)
+				}
 			}
 		}
 		if export.TeamName == "" {
-			if teamID, ok := intFieldOK(record, "GameTeam"); ok && teamID > 0 {
-				export.TeamID = &teamID
-				export.TeamName = teamNames[teamID]
+			if row, ok := intFieldOK(record, "GameTeam"); ok {
+				if teamID, ok := teams.exportID(row); ok {
+					export.TeamID = &teamID
+					export.TeamName = teams.nameFromID(teamID)
+				}
 			}
 		}
 

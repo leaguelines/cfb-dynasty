@@ -2,7 +2,8 @@ package dynasty
 
 import "sort"
 
-// buildRosterExports groups rostered players by team index.
+// buildRosterExports groups rostered players by stable team ID (Team.TeamIndex).
+// Player.TeamIndex stores a Team table row number; we remap through teamMaps.
 func (f *File) buildRosterExports() ([]RosterExport, error) {
 	playerTable, ok := f.PrimaryTableByName("Player")
 	if !ok {
@@ -12,48 +13,36 @@ func (f *File) buildRosterExports() ([]RosterExport, error) {
 		return nil, err
 	}
 
-	teamNames := f.teamNameByIndex()
+	teams := f.teamMaps()
 
 	rosters := make(map[int][]PlayerExport)
 	for _, record := range playerTable.Records {
-		teamIndex, ok := intFieldOK(record, "TeamIndex")
-		if !ok || teamIndex <= 0 {
+		row, ok := intFieldOK(record, "TeamIndex")
+		if !ok {
+			continue
+		}
+		teamID, ok := teams.exportID(row)
+		if !ok {
 			continue
 		}
 		player := buildPlayerExport(record)
 		if player == nil {
 			continue
 		}
-		rosters[teamIndex] = append(rosters[teamIndex], *player)
+		applyCanonicalTeamIndex(player, teams)
+		rosters[teamID] = append(rosters[teamID], *player)
 	}
 
 	exports := make([]RosterExport, 0, len(rosters))
 	for teamID, players := range rosters {
 		exports = append(exports, RosterExport{
 			TeamID:   teamID,
-			TeamName: teamNames[teamID],
+			TeamName: teams.nameFromID(teamID),
 			Players:  players,
 		})
 	}
 	sortRosterExports(exports)
 	return exports, nil
-}
-
-func (f *File) teamNameByIndex() map[int]string {
-	teamTable, ok := f.PrimaryTableByName("Team")
-	if !ok {
-		return nil
-	}
-	if err := teamTable.ReadRecords(); err != nil {
-		return nil
-	}
-	names := make(map[int]string, teamTable.ActiveRecordCount())
-	for _, record := range teamTable.Records {
-		if name := bestTeamName(record); name != "" {
-			names[record.Index] = name
-		}
-	}
-	return names
 }
 
 func sortRosterExports(exports []RosterExport) {
