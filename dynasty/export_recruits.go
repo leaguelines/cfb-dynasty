@@ -35,6 +35,7 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 			if playerRecord, _, ok := f.playerRecordByReference(playerRef.Reference); ok {
 				export.Player = buildPlayerExport(playerRecord)
 				applyCanonicalTeamIndex(export.Player, teams)
+				applyPlayerAth(export.Player, export.AlternatePosition1, export.AlternatePosition2)
 			}
 		}
 

@@ -14,6 +14,10 @@ func (f *File) buildRosterExports() ([]RosterExport, error) {
 	}
 
 	teams := f.teamMaps()
+	alternatePositions, err := f.playerAlternatePositions()
+	if err != nil {
+		return nil, err
+	}
 
 	rosters := make(map[int][]PlayerExport)
 	for _, record := range playerTable.Records {
@@ -28,6 +32,9 @@ func (f *File) buildRosterExports() ([]RosterExport, error) {
 		player := buildPlayerExport(record)
 		if player == nil {
 			continue
+		}
+		if alt, ok := alternatePositions[record.Index]; ok {
+			applyPlayerAth(player, alt[0], alt[1])
 		}
 		applyCanonicalTeamIndex(player, teams)
 		rosters[teamID] = append(rosters[teamID], *player)

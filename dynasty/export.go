@@ -434,6 +434,7 @@ type PlayerExport struct {
 	FirstName          string         `json:"firstName,omitempty"`
 	LastName           string         `json:"lastName,omitempty"`
 	Position           string         `json:"position,omitempty"`
+	IsAth              bool           `json:"isAth,omitempty"`
 	Archetype          string         `json:"archetype,omitempty"`
 	ArchetypeLabel     string         `json:"archetypeLabel,omitempty"`
 	SchoolYear         string         `json:"schoolYear,omitempty"`

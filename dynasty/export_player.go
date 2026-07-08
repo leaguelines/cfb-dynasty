@@ -126,6 +126,26 @@ func buildStatPlayerIdentity(record Record, teams teamIndexMaps) *PlayerExport {
 	return player
 }
 
+// applyPlayerAth sets IsAth when the linked recruit lists alternate positions.
+func applyPlayerAth(player *PlayerExport, alt1, alt2 string) {
+	if player == nil {
+		return
+	}
+	player.IsAth = playerIsAth(alt1, alt2)
+}
+
+// playerIsAth reports whether a player is an athlete (ATH) recruit — one who can
+// play multiple positions. The game stores that as AlternatePosition1/2 on the
+// recruit row, not as Position on the player.
+func playerIsAth(alt1, alt2 string) bool {
+	return isSetAlternatePosition(alt1) || isSetAlternatePosition(alt2)
+}
+
+func isSetAlternatePosition(pos string) bool {
+	pos = strings.TrimSuffix(pos, "_")
+	return pos != "" && pos != "Invalid"
+}
+
 func setIntPtr(dst **int, value int64) {
 	if value == 0 {
 		return
