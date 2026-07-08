@@ -36,6 +36,8 @@ var archetypePTEntries = []archetypePTEntry{
 	{field: "PT_DLPUREPOWER", label: "Pure Power"},
 	{field: "PT_DLPOWERRUSHER", label: "Power Rusher"},
 	{field: "PT_DLSPEEDRUSHER", label: "Speed Rusher"},
+	// Shared by DE_RunStopper (Edge Setter) and DT_NoseTackle (Gap Specialist);
+	// resolved in archetypeLabelFromRecord via PlayerType/position.
 	{field: "PT_DLRUNSTOPPER", label: "Gap Specialist"},
 
 	// Linebacker
@@ -57,33 +59,33 @@ var playerTypeArchetypeLabels = map[string]string{
 	"QB_PureScrambler": "Pure Runner",
 
 	// Halfback
-	"HB_PowerBack":       "Contact Seeker",
-	"HB_ElusiveBack":     "East/West Playmaker",
-	"HB_ReceivingBack":   "Backfield Threat",
-	"HB_ElusivePower":    "Elusive Bruiser",
-	"HB_PowerReceiving":  "North/South Receiver",
-	"HB_PowerBlocking":   "North/South Blocker",
+	"HB_PowerBack":      "Contact Seeker",
+	"HB_ElusiveBack":    "East/West Playmaker",
+	"HB_ReceivingBack":  "Backfield Threat",
+	"HB_ElusivePower":   "Elusive Bruiser",
+	"HB_PowerReceiving": "North/South Receiver",
+	"HB_PowerBlocking":  "North/South Blocker",
 
 	// Wide receiver
-	"WR_DeepThreat":           "Speedster",
-	"WR_Playmaker":            "Route Artist",
-	"WR_PhysicalRouteRunner":  "Physical Route Runner",
-	"WR_ShiftyRouteRunner":    "Elusive Route Runner",
-	"WR_GadgetReceiver":       "Gadget",
-	"WR_Physical":             "Contested Specialist",
-	"WR_PhysicalBlocker":      "Gritty Possession",
+	"WR_DeepThreat":          "Speedster",
+	"WR_Playmaker":           "Route Artist",
+	"WR_PhysicalRouteRunner": "Physical Route Runner",
+	"WR_ShiftyRouteRunner":   "Elusive Route Runner",
+	"WR_GadgetReceiver":      "Gadget",
+	"WR_Physical":            "Contested Specialist",
+	"WR_PhysicalBlocker":     "Gritty Possession",
 
 	// Tight end
 	"TE_VerticalThreat":      "Vertical Threat",
 	"TE_PhysicalRouteRunner": "Physical Route Runner",
 	"TE_Blocking":            "Pure Blocker",
-	"TE_Possession":          "Gritty Possession",
+	"TE_Possession":          "Pure Possession",
 
 	// Cornerback
 	"CB_Zone":         "Zone",
 	"CB_MantoMan":     "Bump and Run",
-	"CB_Slot":         "Field",
-	"CB_HybridCorner": "Boundary",
+	"CB_Slot":         "Boundary",
+	"CB_HybridCorner": "Field",
 
 	// Safety
 	"S_Zone":       "Coverage Specialist",
@@ -108,7 +110,7 @@ var playerTypeArchetypeLabels = map[string]string{
 	"DE_SmallerSpeedRusher": "Speed Rusher",
 	"DE_PowerRusher":        "Power Rusher",
 	"DE_PurePower":          "Pure Power",
-	"DE_RunStopper":         "Gap Specialist",
+	"DE_RunStopper":         "Edge Setter",
 	"DT_NoseTackle":         "Gap Specialist",
 	"DT_PurePower":          "Pure Power",
 	"DT_SpeedRusher":        "Speed Rusher",
@@ -143,6 +145,9 @@ func archetypeLabelFromRecord(record Record) string {
 	for _, entry := range archetypePTEntries {
 		value, ok := record.Get(entry.field)
 		if ok && value.Bool {
+			if entry.field == "PT_DLRUNSTOPPER" {
+				return dlRunStopperLabel(record)
+			}
 			return entry.label
 		}
 	}
@@ -150,4 +155,21 @@ func archetypeLabelFromRecord(record Record) string {
 		return label
 	}
 	return ""
+}
+
+// dlRunStopperLabel disambiguates the shared PT_DLRUNSTOPPER flag. Edges
+// (DE_RunStopper / LE / RE) display as "Edge Setter"; interior run-stoppers
+// (DT_NoseTackle and other DTs) stay "Gap Specialist".
+func dlRunStopperLabel(record Record) string {
+	switch stringField(record, "PlayerType") {
+	case "DE_RunStopper":
+		return "Edge Setter"
+	case "DT_NoseTackle":
+		return "Gap Specialist"
+	}
+	switch stringField(record, "Position") {
+	case "LE", "RE":
+		return "Edge Setter"
+	}
+	return "Gap Specialist"
 }
