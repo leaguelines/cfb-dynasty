@@ -148,6 +148,17 @@ cfb-dynasty export -schema-dir ./schemas --games --no-game-stats /path/to/Dynast
 | `--injuries` | `injuries` | Active injuries |
 | `--depth-charts` | `depthCharts` | Depth chart slots by team |
 | `--history` | `playerAwards`, `leagueAwards`, `conferenceChampions`, `recordBook` | Awards and the full stat record book |
+| `--school-grades` | `schoolGrades` | Per-school recruiting pitch grades |
+| `--pipelines` | `pipelineInfluence` | Per-school pipeline influence by region |
+| `--rivalries` | `rivalries` | Head-to-head rivalry records |
+| `--position-changes` | `positionChanges` | Player position/archetype change history |
+| `--draft` | `draftPicks` | Draft pick slot assignments |
+| `--bowls` | `bowlGames` | Bowl game metadata |
+
+Player and recruit exports also include enriched attributes when `--rosters` or
+`--recruits` is selected: NIL, redshirt status, motivations, abilities, career
+summary stats, archetype traits, and more. Game exports include quarter scores,
+weather, kicking, and offensive line stats when `--games` is selected.
 
 Additional flags:
 

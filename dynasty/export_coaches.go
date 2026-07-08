@@ -48,6 +48,15 @@ func (f *File) buildCoachExports() ([]CoachExport, error) {
 		setOptionalPositiveInt(record, "ContractLength", &export.ContractLength)
 		setOptionalPositiveInt(record, "SeasonsWithTeam", &export.SeasonsWithTeam)
 
+		export.JobSecurityStatus = normalizeEnum(stringField(record, "CurrentJobSecurityStatus"))
+		setOptionalPositiveInt(record, "CurrentJobSecurityPercentage", &export.JobSecurityPercent)
+		export.CoachPrestige = normalizeEnum(stringField(record, "CoachPrestige"))
+		setOptionalPositiveInt(record, "CoachPrestigeScore", &export.CoachPrestigeScore)
+		export.DominantArchetype = normalizeEnum(stringField(record, "DominantArchetype"))
+		export.SpecialtyType = normalizeEnum(stringField(record, "SpecialtyType"))
+		export.SeasonGoal = normalizeEnum(stringField(record, "SeasonalGoal"))
+		export.PositionRatings = coachPositionRatings(record)
+
 		export.Career = buildCoachCareerStatsExport(f, record)
 		exports = append(exports, export)
 	}
@@ -92,4 +101,18 @@ func coachCareerStatsFromRecord(record Record) *CoachCareerStatsExport {
 		return nil
 	}
 	return stats
+}
+
+func coachPositionRatings(record Record) map[string]int {
+	fields := []string{"QB", "RB", "WR", "TE", "OL", "DL", "LB", "DB", "K", "P", "S"}
+	ratings := make(map[string]int)
+	for _, pos := range fields {
+		if v, ok := intFieldOK(record, "COACH_"+pos); ok && v > 0 {
+			ratings[pos] = v
+		}
+	}
+	if len(ratings) == 0 {
+		return nil
+	}
+	return ratings
 }

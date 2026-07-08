@@ -8,6 +8,70 @@ var playerIdentityFields = []string{
 	"JerseyNum", "TeamIndex",
 }
 
+func (f *File) buildPlayerExport(record Record, teams teamIndexMaps) *PlayerExport {
+	player := buildPlayerExport(record)
+	if player == nil {
+		return nil
+	}
+	applyPlayerEnrichment(f, player, record, teams)
+	return player
+}
+
+func applyPlayerEnrichment(f *File, player *PlayerExport, record Record, teams teamIndexMaps) {
+	if player == nil {
+		return
+	}
+
+	player.RedshirtStatus = normalizeEnum(stringField(record, "RedshirtStatus"))
+	player.IsNIL = boolField(record, "IsNIL")
+	setOptionalPositiveInt(record, "BaseNILValue", &player.NILBaseValue)
+	setOptionalPositiveInt(record, "CurrentNILCompensation", &player.NILCompensation)
+	player.HomePipeline = normalizeEnum(stringField(record, "HomePipeline"))
+	player.Scheme = normalizeEnum(stringField(record, "Scheme"))
+	player.Motivations = playerMotivations(record)
+	player.RecruitingDealbreaker = normalizeEnum(stringField(record, "RecruitingDealbreaker"))
+	player.IdealRecruitingPitch = normalizeEnum(stringField(record, "IdealRecruitingPitch"))
+	player.Handedness = normalizeEnum(stringField(record, "PLYR_HANDEDNESS"))
+	player.QBStyle = normalizeEnum(stringField(record, "PLYR_QBSTYLE"))
+	player.InjuryStatus = normalizeEnum(stringField(record, "InjuryStatus"))
+	player.WasPreviouslyInjured = boolField(record, "WasPreviouslyInjured")
+	setOptionalPositiveInt(record, "ExperiencePoints", &player.ExperiencePoints)
+	setOptionalPositiveInt(record, "LegacyScore", &player.LegacyScore)
+
+	if row, ok := intFieldOK(record, "PrevTeamIndex"); ok {
+		if id, ok := teams.exportID(row); ok {
+			player.PrevTeamIndex = &id
+		}
+	}
+
+	if abilities := physicalAbilitiesFromRecord(record); len(abilities) > 0 {
+		player.PhysicalAbilities = abilities
+	}
+	if abilities := mentalAbilitiesFromRecord(record); len(abilities) > 0 {
+		player.MentalAbilities = abilities
+	}
+	if stats := f.playerCareerStatsExport(record); stats != nil {
+		player.CareerStats = stats
+	}
+	if traits := archetypeTraitsFromRecord(record); len(traits) > 0 {
+		player.ArchetypeTraits = traits
+	}
+}
+
+func playerMotivations(record Record) []string {
+	var out []string
+	for _, field := range []string{"Motivation1", "Motivation2", "Motivation3"} {
+		if value := normalizeEnum(stringField(record, field)); value != "" && value != "None" && value != "Invalid" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func normalizeEnum(raw string) string {
+	return strings.TrimSuffix(strings.TrimSpace(raw), "_")
+}
+
 func buildPlayerExport(record Record) *PlayerExport {
 	if len(record.Fields) == 0 {
 		return nil
@@ -41,7 +105,7 @@ func buildPlayerExport(record Record) *PlayerExport {
 			setIntPtr(&player.Height, value.Int)
 		case "Weight":
 			if value.Int > 0 {
-				setIntPtr(&player.Weight, value.Int)
+				setIntPtr(&player.Weight, value.Int+playerWeightOffset)
 			}
 		case "OverallRating":
 			setIntPtr(&player.Overall, value.Int)
@@ -58,6 +122,13 @@ func buildPlayerExport(record Record) *PlayerExport {
 	if label := archetypeLabelFromRecord(record); label != "" {
 		player.ArchetypeLabel = label
 	}
+
+	if trait := devTraitFromRecord(record); trait != "" {
+		player.DevTrait = trait
+	}
+
+	player.IsImpactPlayer = boolField(record, "IsImpactPlayer")
+	player.IsCaptain = boolField(record, "PLYR_ISCAPTAIN")
 
 	if caps, total, ok := skillGroupCapsFromRecord(record); ok {
 		player.SkillGroupCaps = caps
@@ -144,6 +215,26 @@ func playerIsAth(alt1, alt2 string) bool {
 func isSetAlternatePosition(pos string) bool {
 	pos = strings.TrimSuffix(pos, "_")
 	return pos != "" && pos != "Invalid"
+}
+
+// devTraitFromRecord maps the save's TraitDevelopment enum to export labels.
+func devTraitFromRecord(record Record) string {
+	return devTraitLabel(stringField(record, "TraitDevelopment"))
+}
+
+func devTraitLabel(raw string) string {
+	switch strings.TrimSuffix(raw, "_") {
+	case "Normal":
+		return "normal"
+	case "College_Impact":
+		return "impact"
+	case "College_Star", "Star":
+		return "star"
+	case "College_Elite", "Superstar":
+		return "elite"
+	default:
+		return ""
+	}
 }
 
 func setIntPtr(dst **int, value int64) {

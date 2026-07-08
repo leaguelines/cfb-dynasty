@@ -29,7 +29,7 @@ func (f *File) buildRosterExports() ([]RosterExport, error) {
 		if !ok {
 			continue
 		}
-		player := buildPlayerExport(record)
+		player := f.buildPlayerExport(record, teams)
 		if player == nil {
 			continue
 		}

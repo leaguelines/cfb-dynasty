@@ -21,6 +21,9 @@ const (
 	table2StringIndexSentinel = 0x80000000
 
 	DefaultGameYear = 27
+
+	// playerWeightOffset is added to the raw Weight int stored in dynasty saves.
+	playerWeightOffset = 160
 )
 
 // Format describes the on-disk container variant.

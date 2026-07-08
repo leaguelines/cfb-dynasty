@@ -139,6 +139,54 @@ func (f *File) buildExport(opts ExportOptions) (Export, error) {
 		export.Season = f.buildSeasonExport()
 	}
 
+	if opts.IncludeSchoolGrades() {
+		grades, err := f.buildSchoolGradesExports()
+		if err != nil {
+			return Export{}, err
+		}
+		export.SchoolGrades = grades
+	}
+
+	if opts.IncludePipelines() {
+		pipelines, err := f.buildPipelineInfluenceExports()
+		if err != nil {
+			return Export{}, err
+		}
+		export.PipelineInfluence = pipelines
+	}
+
+	if opts.IncludeRivalries() {
+		rivalries, err := f.buildRivalryExports()
+		if err != nil {
+			return Export{}, err
+		}
+		export.Rivalries = rivalries
+	}
+
+	if opts.IncludePositionChanges() {
+		changes, err := f.buildPositionChangeExports()
+		if err != nil {
+			return Export{}, err
+		}
+		export.PositionChanges = changes
+	}
+
+	if opts.IncludeDraft() {
+		picks, err := f.buildDraftPickExports()
+		if err != nil {
+			return Export{}, err
+		}
+		export.DraftPicks = picks
+	}
+
+	if opts.IncludeBowls() {
+		bowls, err := f.buildBowlGameExports()
+		if err != nil {
+			return Export{}, err
+		}
+		export.BowlGames = bowls
+	}
+
 	return export, nil
 }
 
@@ -162,6 +210,7 @@ func (f *File) buildGameExports(opts ExportOptions) ([]GameExport, error) {
 	teamNames := buildTeamNameIndex(teamTable)
 
 	var statsIndex gameStatsIndex
+	var detailIndex gameDetailIndex
 	var err error
 	if opts.IncludeGameStats() {
 		statsIndex, err = f.buildGameStatsIndex(len(seasonGame.Records))
@@ -169,6 +218,7 @@ func (f *File) buildGameExports(opts ExportOptions) ([]GameExport, error) {
 			return nil, err
 		}
 	}
+	detailIndex = f.buildGameDetailIndex(len(seasonGame.Records))
 
 	games := make([]GameExport, 0, seasonGame.ActiveRecordCount())
 	for _, record := range seasonGame.Records {
@@ -190,6 +240,7 @@ func (f *File) buildGameExports(opts ExportOptions) ([]GameExport, error) {
 		if score, ok := intFieldOK(record, "AwayScore"); ok {
 			game.AwayScore = &score
 		}
+		applyGameDetails(&game, record, f, detailIndex)
 		if opts.IncludeGameStats() {
 			attachTeamGameStats(f, &game, record)
 			if playerStats := buildPlayerGameStatsExports(record.Index, statsIndex); len(playerStats) > 0 {

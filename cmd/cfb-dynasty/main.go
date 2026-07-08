@@ -33,6 +33,12 @@ Export flags (default: all sections):
   --injuries       Include active player injuries
   --depth-charts   Include team depth charts
   --history        Include awards, conference champions, and stat records
+  --school-grades  Include per-school recruiting pitch grades
+  --pipelines      Include per-school pipeline influence
+  --rivalries      Include rivalry records
+  --position-changes Include player position change history
+  --draft          Include draft pick assignments
+  --bowls          Include bowl game metadata
   --no-game-stats  Omit team/player stat lines from game exports
 
 When one or more section flags is set, only those sections are exported.
@@ -134,6 +140,12 @@ func runExport(args []string) int {
 	includeInjuries := fs.Bool("injuries", false, "include active injuries")
 	includeDepthCharts := fs.Bool("depth-charts", false, "include team depth charts")
 	includeHistory := fs.Bool("history", false, "include awards and league history")
+	includeSchoolGrades := fs.Bool("school-grades", false, "include school recruiting grades")
+	includePipelines := fs.Bool("pipelines", false, "include school pipeline influence")
+	includeRivalries := fs.Bool("rivalries", false, "include rivalry records")
+	includePositionChanges := fs.Bool("position-changes", false, "include player position change history")
+	includeDraft := fs.Bool("draft", false, "include draft pick assignments")
+	includeBowls := fs.Bool("bowls", false, "include bowl game metadata")
 	omitGameStats := fs.Bool("no-game-stats", false, "omit team/player stat lines from games")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -162,20 +174,28 @@ func runExport(args []string) int {
 	}
 	if *includeGames || *includeRecruits || *includeSeason || *includeTeams || *includeRosters ||
 		*includeRecruiting || *includeSeasonStats || *includeCoaches || *includeLeavingPlayers ||
-		*includeInjuries || *includeDepthCharts || *includeHistory {
+		*includeInjuries || *includeDepthCharts || *includeHistory || *includeSchoolGrades ||
+		*includePipelines || *includeRivalries || *includePositionChanges || *includeDraft ||
+		*includeBowls {
 		exportOpts.Sections = dynasty.ExportSections{
-			Games:          *includeGames,
-			Recruits:       *includeRecruits,
-			Season:         *includeSeason,
-			Teams:          *includeTeams,
-			Rosters:        *includeRosters,
-			Recruiting:     *includeRecruiting,
-			SeasonStats:    *includeSeasonStats,
-			Coaches:        *includeCoaches,
-			LeavingPlayers: *includeLeavingPlayers,
-			Injuries:       *includeInjuries,
-			DepthCharts:    *includeDepthCharts,
-			History:        *includeHistory,
+			Games:            *includeGames,
+			Recruits:         *includeRecruits,
+			Season:           *includeSeason,
+			Teams:            *includeTeams,
+			Rosters:          *includeRosters,
+			Recruiting:       *includeRecruiting,
+			SeasonStats:      *includeSeasonStats,
+			Coaches:          *includeCoaches,
+			LeavingPlayers:   *includeLeavingPlayers,
+			Injuries:         *includeInjuries,
+			DepthCharts:      *includeDepthCharts,
+			History:          *includeHistory,
+			SchoolGrades:     *includeSchoolGrades,
+			Pipelines:        *includePipelines,
+			Rivalries:        *includeRivalries,
+			PositionChanges:  *includePositionChanges,
+			Draft:            *includeDraft,
+			Bowls:            *includeBowls,
 		}
 	}
 

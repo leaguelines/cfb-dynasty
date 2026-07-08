@@ -294,7 +294,9 @@ func TestExportOptionsDefaults(t *testing.T) {
 	if !opts.IncludeGames() || !opts.IncludeRecruits() || !opts.IncludeSeason() ||
 		!opts.IncludeTeams() || !opts.IncludeRosters() || !opts.IncludeRecruiting() ||
 		!opts.IncludeSeasonStats() || !opts.IncludeCoaches() || !opts.IncludeLeavingPlayers() ||
-		!opts.IncludeInjuries() || !opts.IncludeDepthCharts() || !opts.IncludeHistory() {
+		!opts.IncludeInjuries() || !opts.IncludeDepthCharts() || !opts.IncludeHistory() ||
+		!opts.IncludeSchoolGrades() || !opts.IncludePipelines() || !opts.IncludeRivalries() ||
+		!opts.IncludePositionChanges() || !opts.IncludeDraft() || !opts.IncludeBowls() {
 		t.Fatal("default export options should include all sections")
 	}
 	if !opts.IncludeGameStats() {

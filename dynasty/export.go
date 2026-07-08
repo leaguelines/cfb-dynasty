@@ -24,6 +24,12 @@ type Export struct {
 	RecordBook          []RecordBookEntry          `json:"recordBook,omitempty"`
 	Games               []GameExport               `json:"games,omitempty"`
 	Recruits            []RecruitExport            `json:"recruits,omitempty"`
+	SchoolGrades        []SchoolGradesExport       `json:"schoolGrades,omitempty"`
+	PipelineInfluence   []PipelineInfluenceExport  `json:"pipelineInfluence,omitempty"`
+	Rivalries           []RivalryExport            `json:"rivalries,omitempty"`
+	PositionChanges     []PositionChangeExport     `json:"positionChanges,omitempty"`
+	DraftPicks          []DraftPickExport          `json:"draftPicks,omitempty"`
+	BowlGames           []BowlGameExport           `json:"bowlGames,omitempty"`
 	ExportedAt          time.Time                  `json:"exportedAt"`
 	Parser              ExportParserInfo           `json:"parser"`
 }
@@ -70,6 +76,22 @@ type TeamExport struct {
 	OffensiveRank    *int   `json:"offensiveRank,omitempty"`
 	DefensiveRank    *int   `json:"defensiveRank,omitempty"`
 	PrestigeRank     *int   `json:"prestigeRank,omitempty"`
+	OffensiveScheme  string `json:"offensiveScheme,omitempty"`
+	DefensiveScheme  string `json:"defensiveScheme,omitempty"`
+	Philosophy       string `json:"philosophy,omitempty"`
+	PlayoffStatus    string `json:"playoffStatus,omitempty"`
+	PlayoffRoundReached string `json:"playoffRoundReached,omitempty"`
+	CoachesPollPoints *int  `json:"coachesPollPoints,omitempty"`
+	MediaPollPoints   *int  `json:"mediaPollPoints,omitempty"`
+	CFPPollPoints     *int  `json:"cfpPollPoints,omitempty"`
+	StaffIDs           *TeamStaffIDsExport `json:"staffIds,omitempty"`
+}
+
+// TeamStaffIDsExport links a team to its primary coaching staff row indices.
+type TeamStaffIDsExport struct {
+	HeadCoachID               *int `json:"headCoachId,omitempty"`
+	OffensiveCoordinatorID    *int `json:"offensiveCoordinatorId,omitempty"`
+	DefensiveCoordinatorID    *int `json:"defensiveCoordinatorId,omitempty"`
 }
 
 // RosterExport is a team's active roster with player attributes.
@@ -90,9 +112,55 @@ type GameExport struct {
 	AwayTeam        string                  `json:"awayTeam,omitempty"`
 	HomeScore       *int                    `json:"homeScore,omitempty"`
 	AwayScore       *int                    `json:"awayScore,omitempty"`
+	HomeQuarterScores []int                 `json:"homeQuarterScores,omitempty"`
+	AwayQuarterScores []int                 `json:"awayQuarterScores,omitempty"`
+	HomeScoreOT       *int                    `json:"homeScoreOT,omitempty"`
+	AwayScoreOT       *int                    `json:"awayScoreOT,omitempty"`
+	Attendance        *int                    `json:"attendance,omitempty"`
+	Temperature       *int                    `json:"temperature,omitempty"`
+	Weather           string                  `json:"weather,omitempty"`
+	Wind              string                  `json:"wind,omitempty"`
+	WindSpeed         *int                    `json:"windSpeed,omitempty"`
+	IsSimmed          bool                    `json:"isSimmed,omitempty"`
+	IsOvertime        bool                    `json:"isOvertime,omitempty"`
+	BowlGameID        *int                    `json:"bowlGameId,omitempty"`
+	BowlGameName      string                  `json:"bowlGameName,omitempty"`
+	ScoringPlays      []ScoringPlayExport     `json:"scoringPlays,omitempty"`
+	KickingStats      []GameKickingStatsExport `json:"kickingStats,omitempty"`
+	OLineStats        []GameOLineStatsExport  `json:"olineStats,omitempty"`
 	HomeTeamStats   *TeamStatsExport        `json:"homeTeamStats,omitempty"`
 	AwayTeamStats   *TeamStatsExport        `json:"awayTeamStats,omitempty"`
 	PlayerGameStats []PlayerGameStatsExport `json:"playerGameStats,omitempty"`
+}
+
+// ScoringPlayExport is one scoring event from a game's scoring summary.
+type ScoringPlayExport struct {
+	Quarter           int    `json:"quarter,omitempty"`
+	TimeStampSec      *int   `json:"timeStampSec,omitempty"`
+	HomeScore         *int   `json:"homeScore,omitempty"`
+	AwayScore         *int   `json:"awayScore,omitempty"`
+	HomePreviousScore *int   `json:"homePreviousScore,omitempty"`
+	AwayPreviousScore *int   `json:"awayPreviousScore,omitempty"`
+	Conversion        string `json:"conversion,omitempty"`
+}
+
+// GameKickingStatsExport is kicking/punting stats for one team in a game.
+type GameKickingStatsExport struct {
+	FieldGoalsMade       *int `json:"fieldGoalsMade,omitempty"`
+	FieldGoalsAttempted  *int `json:"fieldGoalsAttempted,omitempty"`
+	FieldGoalLongest     *int `json:"fieldGoalLongest,omitempty"`
+	ExtraPointsMade      *int `json:"extraPointsMade,omitempty"`
+	ExtraPointsAttempted *int `json:"extraPointsAttempted,omitempty"`
+	PuntAttempts         *int `json:"puntAttempts,omitempty"`
+	PuntYards            *int `json:"puntYards,omitempty"`
+	PuntLongest          *int `json:"puntLongest,omitempty"`
+	PuntsInside20        *int `json:"puntsInside20,omitempty"`
+}
+
+// GameOLineStatsExport is offensive line stats for one team in a game.
+type GameOLineStatsExport struct {
+	Pancakes     *int `json:"pancakes,omitempty"`
+	SacksAllowed *int `json:"sacksAllowed,omitempty"`
 }
 
 // TeamStatsExport is a team stat line (game or season).
@@ -235,7 +303,9 @@ type RecruitExport struct {
 	QualityModifier        string        `json:"qualityModifier,omitempty"`
 	TotalScholarshipOffers *int          `json:"totalScholarshipOffers,omitempty"`
 	AlternatePosition1     string        `json:"alternatePosition1,omitempty"`
-	AlternatePosition2     string        `json:"alternatePosition2,omitempty"`
+	AlternatePosition2     string                          `json:"alternatePosition2,omitempty"`
+	RecruitStageAdvance      string                          `json:"recruitStageAdvance,omitempty"`
+	SchoolInterest           []RecruitingSchoolInterestExport `json:"schoolInterest,omitempty"`
 	Player                 *PlayerExport `json:"player,omitempty"`
 }
 
@@ -270,6 +340,91 @@ type RecruitingSchoolInterestExport struct {
 	Influence int    `json:"influence,omitempty"`
 }
 
+// SchoolGradesExport is a team's recruiting pitch grades from MySchoolTrackingTable.
+type SchoolGradesExport struct {
+	TeamID                      int    `json:"teamId"`
+	TeamName                    string `json:"teamName,omitempty"`
+	AcademicPrestige            string `json:"academicPrestige,omitempty"`
+	AthleticFacilities          string `json:"athleticFacilities,omitempty"`
+	BrandExposure               string `json:"brandExposure,omitempty"`
+	CampusLifestyle             string `json:"campusLifestyle,omitempty"`
+	ChampionshipContender         string `json:"championshipContender,omitempty"`
+	CoachPrestige               string `json:"coachPrestige,omitempty"`
+	CoachStability              string `json:"coachStability,omitempty"`
+	ConferencePrestige          string `json:"conferencePrestige,omitempty"`
+	ProgramTradition            string `json:"programTradition,omitempty"`
+	StadiumAtmosphere           string `json:"stadiumAtmosphere,omitempty"`
+	ProPotentialQB              string `json:"proPotentialQB,omitempty"`
+	ProPotentialRB              string `json:"proPotentialRB,omitempty"`
+	ProPotentialWR              string `json:"proPotentialWR,omitempty"`
+	ProPotentialTE              string `json:"proPotentialTE,omitempty"`
+	ProPotentialOL              string `json:"proPotentialOL,omitempty"`
+	ProPotentialDL              string `json:"proPotentialDL,omitempty"`
+	ProPotentialLB              string `json:"proPotentialLB,omitempty"`
+	ProPotentialDB              string `json:"proPotentialDB,omitempty"`
+	ProPotentialK               string `json:"proPotentialK,omitempty"`
+	ProPotentialP               string `json:"proPotentialP,omitempty"`
+}
+
+// PipelineInfluenceExport is one pipeline region's influence for a school.
+type PipelineInfluenceExport struct {
+	TeamID         int    `json:"teamId"`
+	TeamName       string `json:"teamName,omitempty"`
+	Pipeline       string `json:"pipeline,omitempty"`
+	InfluenceLevel string `json:"influenceLevel,omitempty"`
+	InfluenceValue *int   `json:"influenceValue,omitempty"`
+}
+
+// RivalryExport is a head-to-head rivalry between two teams.
+type RivalryExport struct {
+	ID              int    `json:"id"`
+	Name            string `json:"name,omitempty"`
+	Team1ID         *int   `json:"team1Id,omitempty"`
+	Team1Name       string `json:"team1Name,omitempty"`
+	Team2ID         *int   `json:"team2Id,omitempty"`
+	Team2Name       string `json:"team2Name,omitempty"`
+	Team1Wins       *int   `json:"team1Wins,omitempty"`
+	Team2Wins       *int   `json:"team2Wins,omitempty"`
+	StreakLength    *int   `json:"streakLength,omitempty"`
+	StreakTeamID    *int   `json:"streakTeamId,omitempty"`
+	Team1LastScore  *int   `json:"team1LastScore,omitempty"`
+	Team2LastScore  *int   `json:"team2LastScore,omitempty"`
+}
+
+// PositionChangeExport is a player position or archetype change event.
+type PositionChangeExport struct {
+	ID           int    `json:"id"`
+	PlayerID     *int   `json:"playerId,omitempty"`
+	OldPosition  string `json:"oldPosition,omitempty"`
+	NewPosition  string `json:"newPosition,omitempty"`
+	OldArchetype string `json:"oldArchetype,omitempty"`
+	NewArchetype string `json:"newArchetype,omitempty"`
+	SeasonYear   *int   `json:"seasonYear,omitempty"`
+	SeasonWeek   *int   `json:"seasonWeek,omitempty"`
+	SeasonStage  string `json:"seasonStage,omitempty"`
+	OldTeamID    *int   `json:"oldTeamId,omitempty"`
+	NewTeamID    *int   `json:"newTeamId,omitempty"`
+}
+
+// DraftPickExport is a draft selection slot assignment.
+type DraftPickExport struct {
+	ID            int    `json:"id"`
+	YearOffset    *int   `json:"yearOffset,omitempty"`
+	Round         *int   `json:"round,omitempty"`
+	PickNumber    *int   `json:"pickNumber,omitempty"`
+	PositionGroup string `json:"positionGroup,omitempty"`
+	TeamID        *int   `json:"teamId,omitempty"`
+	TeamName      string `json:"teamName,omitempty"`
+}
+
+// BowlGameExport is bowl game metadata from the save.
+type BowlGameExport struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name,omitempty"`
+	IsPlayoffBowl bool  `json:"isPlayoffBowl,omitempty"`
+	PlayoffBracketSlot *int `json:"playoffBracketSlot,omitempty"`
+}
+
 // RecruitingVisitExport is a scheduled recruiting visit.
 type RecruitingVisitExport struct {
 	Week     int    `json:"week,omitempty"`
@@ -278,6 +433,8 @@ type RecruitingVisitExport struct {
 }
 
 // CoachExport is a coaching staff member with contract and career context.
+// Staff contract fields come from the Coach table. PlayerBaseContract / ContractYearSummary
+// (Madden/pro salary tables) are intentionally not exported for CFB dynasty use.
 type CoachExport struct {
 	ID                     int                     `json:"id"`
 	FirstName              string                  `json:"firstName,omitempty"`
@@ -299,6 +456,14 @@ type CoachExport struct {
 	HomeTown               string                  `json:"homeTown,omitempty"`
 	HomeState              string                  `json:"homeState,omitempty"`
 	Career                 *CoachCareerStatsExport `json:"career,omitempty"`
+	JobSecurityStatus      string                  `json:"jobSecurityStatus,omitempty"`
+	JobSecurityPercent     *int                    `json:"jobSecurityPercent,omitempty"`
+	CoachPrestige          string                  `json:"coachPrestige,omitempty"`
+	CoachPrestigeScore     *int                    `json:"coachPrestigeScore,omitempty"`
+	DominantArchetype      string                  `json:"dominantArchetype,omitempty"`
+	SpecialtyType          string                  `json:"specialtyType,omitempty"`
+	PositionRatings        map[string]int          `json:"positionRatings,omitempty"`
+	SeasonGoal             string                  `json:"seasonGoal,omitempty"`
 }
 
 // CoachCareerStatsExport is a coach's career record summary.
@@ -435,21 +600,64 @@ type PlayerExport struct {
 	LastName           string         `json:"lastName,omitempty"`
 	Position           string         `json:"position,omitempty"`
 	IsAth              bool           `json:"isAth,omitempty"`
+	IsImpactPlayer     bool           `json:"isImpactPlayer,omitempty"`
+	IsCaptain          bool           `json:"isCaptain,omitempty"`
 	Archetype          string         `json:"archetype,omitempty"`
 	ArchetypeLabel     string         `json:"archetypeLabel,omitempty"`
 	SchoolYear         string         `json:"schoolYear,omitempty"`
 	Age                *int           `json:"age,omitempty"`
 	Height             *int           `json:"height,omitempty"`
 	Weight             *int           `json:"weight,omitempty"`
+	DevTrait           string         `json:"devTrait,omitempty"`
 	Overall            *int           `json:"overall,omitempty"`
 	StarRating         string         `json:"starRating,omitempty"`
 	HomeTown           string         `json:"homeTown,omitempty"`
 	HomeState          string         `json:"homeState,omitempty"`
 	Jersey             *int           `json:"jersey,omitempty"`
 	TeamIndex          *int           `json:"teamIndex,omitempty"`
-	Ratings            map[string]int `json:"ratings,omitempty"`
-	SkillGroupCaps     []int          `json:"skillGroupCaps,omitempty"`
-	SkillGroupCapTotal int            `json:"skillGroupCapTotal,omitempty"`
+	Ratings            map[string]int              `json:"ratings,omitempty"`
+	SkillGroupCaps     []int                       `json:"skillGroupCaps,omitempty"`
+	SkillGroupCapTotal int                         `json:"skillGroupCapTotal,omitempty"`
+	RedshirtStatus     string                      `json:"redshirtStatus,omitempty"`
+	IsNIL              bool                        `json:"isNIL,omitempty"`
+	NILBaseValue       *int                        `json:"nilBaseValue,omitempty"`
+	NILCompensation    *int                        `json:"nilCompensation,omitempty"`
+	HomePipeline       string                      `json:"homePipeline,omitempty"`
+	Scheme             string                      `json:"scheme,omitempty"`
+	Motivations        []string                    `json:"motivations,omitempty"`
+	RecruitingDealbreaker string                   `json:"recruitingDealbreaker,omitempty"`
+	IdealRecruitingPitch  string                   `json:"idealRecruitingPitch,omitempty"`
+	Handedness         string                      `json:"handedness,omitempty"`
+	QBStyle            string                      `json:"qbStyle,omitempty"`
+	InjuryStatus       string                      `json:"injuryStatus,omitempty"`
+	WasPreviouslyInjured bool                      `json:"wasPreviouslyInjured,omitempty"`
+	ExperiencePoints   *int                        `json:"experiencePoints,omitempty"`
+	LegacyScore        *int                        `json:"legacyScore,omitempty"`
+	PrevTeamIndex      *int                        `json:"prevTeamIndex,omitempty"`
+	PhysicalAbilities  []PlayerPhysicalAbilityExport `json:"physicalAbilities,omitempty"`
+	MentalAbilities    []PlayerMentalAbilityExport   `json:"mentalAbilities,omitempty"`
+	CareerStats        *PlayerCareerStatsExport    `json:"careerStats,omitempty"`
+	ArchetypeTraits    []string                    `json:"archetypeTraits,omitempty"`
+}
+
+// PlayerPhysicalAbilityExport is one equipped physical ability slot on a player.
+type PlayerPhysicalAbilityExport struct {
+	Slot int    `json:"slot,omitempty"`
+	Tier string `json:"tier,omitempty"`
+}
+
+// PlayerMentalAbilityExport is one equipped mental ability on a player.
+type PlayerMentalAbilityExport struct {
+	Name string `json:"name,omitempty"`
+	Rank *int   `json:"rank,omitempty"`
+}
+
+// PlayerCareerStatsExport is lifetime playing-time summary from CareerStats.
+type PlayerCareerStatsExport struct {
+	GamesPlayed  *int `json:"gamesPlayed,omitempty"`
+	GamesStarted *int `json:"gamesStarted,omitempty"`
+	DownsPlayed  *int `json:"downsPlayed,omitempty"`
+	GameRating   *int `json:"gameRating,omitempty"`
 }
 
 // MarshalJSON writes export data with stable field ordering defaults.

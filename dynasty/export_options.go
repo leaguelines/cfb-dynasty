@@ -25,6 +25,12 @@ type ExportSections struct {
 	Injuries bool
 	DepthCharts bool
 	History bool
+	SchoolGrades bool
+	Pipelines bool
+	Rivalries bool
+	PositionChanges bool
+	Draft bool
+	Bowls bool
 }
 
 // DefaultExportOptions exports every section including game stats.
@@ -92,6 +98,36 @@ func (o ExportOptions) IncludeHistory() bool {
 	return o.Sections.all() || o.Sections.History
 }
 
+// IncludeSchoolGrades reports whether school recruiting grades should be exported.
+func (o ExportOptions) IncludeSchoolGrades() bool {
+	return o.Sections.all() || o.Sections.SchoolGrades
+}
+
+// IncludePipelines reports whether school pipeline influence should be exported.
+func (o ExportOptions) IncludePipelines() bool {
+	return o.Sections.all() || o.Sections.Pipelines
+}
+
+// IncludeRivalries reports whether rivalry rows should be exported.
+func (o ExportOptions) IncludeRivalries() bool {
+	return o.Sections.all() || o.Sections.Rivalries
+}
+
+// IncludePositionChanges reports whether player position change history should be exported.
+func (o ExportOptions) IncludePositionChanges() bool {
+	return o.Sections.all() || o.Sections.PositionChanges
+}
+
+// IncludeDraft reports whether draft pick rows should be exported.
+func (o ExportOptions) IncludeDraft() bool {
+	return o.Sections.all() || o.Sections.Draft
+}
+
+// IncludeBowls reports whether bowl game metadata should be exported.
+func (o ExportOptions) IncludeBowls() bool {
+	return o.Sections.all() || o.Sections.Bowls
+}
+
 // IncludeGameStats reports whether per-game stat lines should be attached.
 func (o ExportOptions) IncludeGameStats() bool {
 	return !o.OmitGameStats
@@ -100,5 +136,6 @@ func (o ExportOptions) IncludeGameStats() bool {
 func (s ExportSections) all() bool {
 	return !s.Games && !s.Recruits && !s.Season && !s.Teams && !s.Rosters &&
 		!s.Recruiting && !s.SeasonStats && !s.Coaches && !s.LeavingPlayers &&
-		!s.Injuries && !s.DepthCharts && !s.History
+		!s.Injuries && !s.DepthCharts && !s.History && !s.SchoolGrades && !s.Pipelines &&
+		!s.Rivalries && !s.PositionChanges && !s.Draft && !s.Bowls
 }

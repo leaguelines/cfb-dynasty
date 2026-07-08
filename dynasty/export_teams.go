@@ -56,9 +56,45 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 		export.DefensiveRank = sensibleRank(record, "DefensiveRank")
 		export.PrestigeRank = sensibleRank(record, "PrestigeRank")
 
+		export.OffensiveScheme = normalizeEnum(stringField(record, "CurrentOffensiveScheme"))
+		export.DefensiveScheme = normalizeEnum(stringField(record, "CurrentDefensiveScheme"))
+		export.Philosophy = normalizeEnum(stringField(record, "Philosophy"))
+		export.PlayoffStatus = normalizeEnum(stringField(record, "PlayoffStatus"))
+		export.PlayoffRoundReached = normalizeEnum(stringField(record, "PlayoffRoundReached"))
+		setOptionalPositiveInt(record, "CoachesPoll_CurrentPoints", &export.CoachesPollPoints)
+		setOptionalPositiveInt(record, "MediaPoll_CurrentPoints", &export.MediaPollPoints)
+		if points, ok := intFieldOK(record, "CFPPoll_CurrentPoints"); ok && points > 0 {
+			export.CFPPollPoints = &points
+		}
+		export.StaffIDs = teamStaffIDsFromRecord(record)
+
 		exports = append(exports, export)
 	}
 	return exports, nil
+}
+
+func teamStaffIDsFromRecord(record Record) *TeamStaffIDsExport {
+	staff := &TeamStaffIDsExport{}
+	hasData := false
+	setCoachID := func(field string, dst **int) {
+		value, ok := record.Get(field)
+		if !ok || value.Reference == nil {
+			return
+		}
+		id := int(value.Reference.RowNumber)
+		if id <= 0 {
+			return
+		}
+		*dst = &id
+		hasData = true
+	}
+	setCoachID("HeadCoach", &staff.HeadCoachID)
+	setCoachID("OffensiveCoordinator", &staff.OffensiveCoordinatorID)
+	setCoachID("DefensiveCoordinator", &staff.DefensiveCoordinatorID)
+	if !hasData {
+		return nil
+	}
+	return staff
 }
 
 // buildConferenceByTeamIndex maps team row index to conference name when available.

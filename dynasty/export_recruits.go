@@ -13,6 +13,10 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 	exports := make([]RecruitExport, 0, recruitTable.ActiveRecordCount())
 	active := int(recruitTable.ActiveRecordCount())
 	teams := f.teamMaps()
+	schoolTable, _ := f.PrimaryTableByName("ProspectTargetSchool")
+	if schoolTable != nil {
+		_ = schoolTable.ReadRecords()
+	}
 	for _, record := range recruitTable.Records {
 		if record.Index >= active {
 			continue
@@ -23,6 +27,8 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 		export.QualityModifier = stringField(record, "QualityModifier")
 		export.AlternatePosition1 = stringField(record, "AlternatePosition1")
 		export.AlternatePosition2 = stringField(record, "AlternatePosition2")
+		export.RecruitStageAdvance = normalizeEnum(stringField(record, "RecruitStageAdvance"))
+		export.SchoolInterest = recruitSchoolInterests(f, record, schoolTable, teams)
 
 		setOptionalPositiveInt(record, "NationalRank", &export.NationalRank)
 		setOptionalPositiveInt(record, "StateRank", &export.StateRank)
@@ -33,7 +39,7 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 
 		if playerRef, ok := record.Get("Player"); ok && playerRef.Reference != nil {
 			if playerRecord, _, ok := f.playerRecordByReference(playerRef.Reference); ok {
-				export.Player = buildPlayerExport(playerRecord)
+				export.Player = f.buildPlayerExport(playerRecord, teams)
 				applyCanonicalTeamIndex(export.Player, teams)
 				applyPlayerAth(export.Player, export.AlternatePosition1, export.AlternatePosition2)
 			}

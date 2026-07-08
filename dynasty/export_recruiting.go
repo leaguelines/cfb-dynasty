@@ -36,7 +36,7 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 		}
 
 		export := RecruitingTargetExport{RecruitID: record.Index}
-		export.TopSchool = topSchoolInterest(record, schoolTable, teams)
+		export.TopSchool = topSchoolInterest(record, f, schoolTable, teams)
 
 		if targetTable != nil && record.Index < len(targetTable.Records) {
 			applyRecruitTargetFields(&export, targetTable.Records[record.Index], f)
@@ -53,19 +53,9 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 	return exports, nil
 }
 
-func topSchoolInterest(recruit Record, schoolTable *Table, teams teamIndexMaps) *RecruitingSchoolInterestExport {
-	if schoolTable == nil {
-		return nil
-	}
-	value, ok := recruit.Get("TopSchoolsList")
-	if !ok || value.Reference == nil || value.Reference.RowNumber == 0 {
-		return nil
-	}
-	idx := int(value.Reference.RowNumber)
-	if idx < 0 || idx >= len(schoolTable.Records) {
-		return nil
-	}
-	return buildSchoolInterestExport(schoolTable.Records[idx], teams)
+func topSchoolInterest(recruit Record, f *File, schoolTable *Table, teams teamIndexMaps) *RecruitingSchoolInterestExport {
+	interests := recruitSchoolInterests(f, recruit, schoolTable, teams)
+	return topSchoolFromInterests(interests)
 }
 
 func buildSchoolInterestExport(record Record, teams teamIndexMaps) *RecruitingSchoolInterestExport {
