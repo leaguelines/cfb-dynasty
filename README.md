@@ -2,7 +2,7 @@
 
 Go library and CLI for reading EA Sports College Football dynasty save files on PC and exporting structured league data as JSON.
 
-**Status: pre-alpha.** Parsing works against CFB 27 PC saves when paired with a schema bundle (for example `C27_441_0.gz`). Coverage is read-only and improves incrementally; some references and array tables are still incomplete.
+**Status: feature-complete for read-only export.** Against CFB 27 PC dynasty saves (with a matching schema bundle such as `C27_468_2.gz`), the tool covers the main dynasty surfaces: season/teams/rosters, schedule and per-game stats, recruiting, coaches, injuries, depth charts, awards, and the full record book. Remaining gaps are narrow (see [Known limitations](#known-limitations)); writing or editing saves is intentionally out of scope.
 
 ## Install
 
@@ -16,6 +16,20 @@ Or add the library to your project:
 go get github.com/leaguelines/cfb-dynasty/dynasty
 ```
 
+## What exports today
+
+| Area | Coverage |
+|------|----------|
+| Season / teams | Year, week, phase; schools with conference, W–L, poll ranks |
+| Rosters | Active players with ratings, archetypes, skill-group caps |
+| Games | Schedule, scores, team box scores, attributed player lines (offense / defense / special teams) |
+| Season stats | Player and team season totals |
+| Recruiting | Board + player attributes; pursuit state, NIL, visits, top school |
+| Staff / roster mgmt | Coaches, injuries, depth charts, leaving / graduation pipeline |
+| History | Player awards, league awards, conference champions, full record book (league / conference / team × career / season / game) |
+
+Stable `Team.TeamIndex` IDs are used throughout for joins (see [Team IDs](#team-ids)).
+
 ## Schema bundles
 
 Table decoding requires a **gzip-compressed JSON schema bundle** derived from the game install. Each bundle lists thousands of table definitions (field names, types, enums) used by the FranTk-style save format.
@@ -26,7 +40,7 @@ Bundles use the same JSON layout as [madden-franchise](https://github.com/bep713
 
 ```json
 {
-  "meta": { "major": 441, "minor": 0, "gameYear": 27 },
+  "meta": { "major": 468, "minor": 2, "gameYear": 27 },
   "schemas": [ ... ],
   "schemaMap": { ... }
 }
@@ -36,19 +50,19 @@ Place one or more files in a directory and pass it to `--schema-dir`. Recognized
 
 | Pattern | Example | Meaning |
 |---------|---------|---------|
-| `C{year}_{major}_{minor}.gz` | `C27_441_0.gz` | CFB, game year 27, bundle major 441, minor 0 |
-| `{major}_{minor}.gz` | `441_0.gz` | Major/minor only (game year optional) |
-| `M{year}_{major}_{minor}.gz` | `M27_441_0.gz` | Madden-style prefix also accepted |
+| `C{year}_{major}_{minor}.gz` | `C27_468_2.gz` | CFB, game year 27, bundle major 468, minor 2 |
+| `{major}_{minor}.gz` | `468_2.gz` | Major/minor only (game year optional) |
+| `M{year}_{major}_{minor}.gz` | `M27_468_2.gz` | Madden-style prefix also accepted |
 
 `inspect` prints the schema version embedded in your save and which bundle was loaded:
 
 ```bash
-cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1.sav
+cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1
 # schema:         major=809 minor=1      ← from save header
-# loaded schema:  major=441 minor=0 ...  ← picked bundle
+# loaded schema:  major=468 minor=2 ...  ← picked bundle
 ```
 
-The save header version and the bundle `meta` version use **different numbering** (for example save `809.1` vs bundle `441.0`). When several bundles are present, the loader picks the closest major/minor match; with only one file in the directory, that file is used.
+The save header version and the bundle `meta` version use **different numbering** (for example save `809.1` vs bundle `468.2`). When several bundles are present, the loader picks the closest major/minor match; with only one file in the directory, that file is used. Prefer the newest CFB 27 bundle you have — older majors (for example `441.0`) mis-decode team and roster fields.
 
 ### How to obtain a bundle
 
@@ -71,14 +85,14 @@ The CLI expects the **evaluated** `.gz` bundle, not raw `.ftx`. The usual path i
 
 **3. Name and verify**
 
-Rename the output to match your game year and bundle `meta` (for example `C27_441_0.gz`), then confirm decoding works:
+Rename the output to match your game year and bundle `meta` (for example `C27_468_2.gz`), then confirm decoding works:
 
 ```bash
-cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1.sav
-cfb-dynasty export -schema-dir ./schemas --teams /path/to/Dynasty1.sav | head
+cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1
+cfb-dynasty export -schema-dir ./schemas --teams /path/to/Dynasty1 | head
 ```
 
-If you already have a working bundle (like `C27_441_0.gz` from local RE), you can use it directly — no re-extraction needed until EA ships a patch that changes table layouts.
+If you already have a working bundle (like `C27_468_2.gz` from local RE), you can use it directly — no re-extraction needed until EA ships a patch that changes table layouts.
 
 ### Should schema bundles be committed to git?
 
@@ -90,7 +104,7 @@ If you already have a working bundle (like `C27_441_0.gz` from local RE), you ca
 | **Size** | ~3 MB compressed, ~30 MB inflated — poor fit for git history. |
 | **Patch churn** | EA title updates can change schema major/minor; bundles go stale quickly. |
 
-**Recommended approach:** keep bundles in a local `data/` or `schemas/` directory (gitignored), document extraction steps (this section), and let each developer generate or copy their own from an owned game install. Integration tests already **skip** when `data/C27_441_0.gz` is absent.
+**Recommended approach:** keep bundles in a local `data/` or `schemas/` directory (gitignored), document extraction steps (this section), and let each developer generate or copy their own from an owned game install. Integration tests already **skip** when a local schema bundle / test save is absent.
 
 For private teams, a shared drive or internal artifact bucket is fine; just avoid publishing the files in the open-source repo or release tarballs.
 
@@ -99,9 +113,9 @@ For private teams, a shared drive or internal artifact bucket is fine; just avoi
 ### Inspect a save
 
 ```bash
-cfb-dynasty inspect /path/to/Dynasty1.sav
-cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1.sav
-cfb-dynasty inspect -json /path/to/Dynasty1.sav
+cfb-dynasty inspect /path/to/Dynasty1
+cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1
+cfb-dynasty inspect -json /path/to/Dynasty1
 ```
 
 Shows compression, format, size, SHA-256, and table marker counts without full parsing.
@@ -110,11 +124,11 @@ Shows compression, format, size, SHA-256, and table marker counts without full p
 
 ```bash
 # Full export (all sections)
-cfb-dynasty export -schema-dir ./schemas /path/to/Dynasty1.sav -o dynasty.json
+cfb-dynasty export -schema-dir ./schemas /path/to/Dynasty1 -o dynasty.json
 
 # Selective export — only the listed sections are included
-cfb-dynasty export -schema-dir ./schemas --teams --rosters /path/to/Dynasty1.sav
-cfb-dynasty export -schema-dir ./schemas --games --no-game-stats /path/to/Dynasty1.sav
+cfb-dynasty export -schema-dir ./schemas --teams --rosters /path/to/Dynasty1
+cfb-dynasty export -schema-dir ./schemas --games --no-game-stats /path/to/Dynasty1
 ```
 
 #### Export sections
@@ -155,7 +169,7 @@ placeholder slots (`TeamIndex` 255) are omitted.
 ### Example: recruits with `jq`
 
 ```bash
-cfb-dynasty export -schema-dir ./schemas --recruits /path/to/Dynasty1.sav | \
+cfb-dynasty export -schema-dir ./schemas --recruits /path/to/Dynasty1 | \
   jq '.recruits[] | select(.nationalRank != null and .player != null) |
       {rank: .nationalRank, name: "\(.player.firstName) \(.player.lastName)",
        position: .player.position, archetype: .player.archetypeLabel, overall: .player.overall,
@@ -223,7 +237,7 @@ leaves lower league ranks at the schema default).
 
 ```bash
 # Every team's career passing-yards record holder
-cfb-dynasty export -schema-dir ./schemas --history /path/to/Dynasty1.sav | \
+cfb-dynasty export -schema-dir ./schemas --history /path/to/Dynasty1 | \
   jq '.recordBook[] | select(.scope=="team" and .period=="career" and .statType=="PassYards") |
       {team: .scopeName, holder: "\(.firstName) \(.lastName)", yards: .statValue}'
 ```
@@ -245,7 +259,7 @@ func main() {
 	settings.SchemaDir = "/path/to/schemas"
 	settings.AutoParse = true
 
-	file, err := dynasty.Open("/path/to/Dynasty1.sav", &settings)
+	file, err := dynasty.Open("/path/to/Dynasty1", &settings)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -306,26 +320,29 @@ if ok {
 %USERPROFILE%\Documents\College Football 27\Saves\
 ```
 
-Dynasty saves are typically named like `Dynasty1.sav`.
+Dynasty saves are typically named like `Dynasty1`.
 
 ## Known limitations
 
-- **Schema required** — export and record decoding need a matching `C27_*_*.gz` bundle.
+- **Schema required** — export and record decoding need a matching `C27_*_*.gz` bundle (not shipped here).
 - **Read-only** — no save writing or editing.
-- **Array tables** — some nested lists (for example full multi-school recruiting interest) do not decode yet.
-- **Unplayed saves** — game and season player stats may be empty or sentinel values until games are simmed.
+- **Recruiting depth** — each prospect’s `topSchool` exports; the full multi-school interest list is not expanded yet.
+- **Skill group names** — caps export as ordered `skillGroupCaps[6]`; UI bucket names live in game tuning assets, not the save.
+- **Record-book team names** — league ranks below #1 often omit a stored team name in the save (the exporter does not invent one).
+- **Unplayed saves** — game and season player stats may be empty until games are simmed.
 - **Large exports** — full exports with `--recruits` and `--rosters` can be tens of MB; use section flags to trim output.
 
 ## Goals
 
-1. **Read-only** parsing of local PC dynasty saves.
-2. Export season state, schedule, rosters, recruiting, stats, and league history as JSON.
-3. Support headless pipelines: copy save → parse → JSON → sync to a web admin or bot.
+1. Reliable **read-only** parsing of local PC dynasty saves.
+2. Export the full set of league surfaces listed above as stable JSON for apps, bots, and pipelines.
+3. Stay headless-friendly: copy save → parse → JSON → sync elsewhere.
 
-## Non-goals (v1)
+## Non-goals
 
 - Console save extraction
-- Writing or repairing save files
+- Writing, repairing, or live-editing save files
+- Redistributing EA schema bundles or other game assets
 
 ## Related projects
 
@@ -348,7 +365,7 @@ Place test saves and schema bundles in a local `data/` directory. Dynasty saves 
 
 ### Contributing
 
-Issues and PRs welcome. Useful contributions include schema version coverage, additional export fields, array-table decoding, and regression tests against real saves.
+Issues and PRs welcome. Useful contributions include schema version coverage after EA patches, filling the remaining limitations above, better docs/examples, and regression tests against real saves.
 
 ## License
 
