@@ -35,20 +35,64 @@ func TestArchetypeLabelFromRecord_PTFlags(t *testing.T) {
 }
 
 func TestArchetypeLabelFromRecord_PlayerTypeFallback(t *testing.T) {
-	record := Record{
-		Fields: map[string]FieldValue{
-			"PlayerType": {String: "CB_Zone"},
-		},
+	tests := []struct {
+		playerType string
+		want       string
+	}{
+		{"CB_Zone", "Zone"},
+		{"CB_Slot", "Boundary"},
+		{"CB_HybridCorner", "Field"},
+		{"TE_Possession", "Pure Possession"},
+		{"DE_RunStopper", "Edge Setter"},
+		{"DT_NoseTackle", "Gap Specialist"},
 	}
-	if got := archetypeLabelFromRecord(record); got != "Zone" {
-		t.Fatalf("got %q, want Zone", got)
+	for _, tt := range tests {
+		record := Record{
+			Fields: map[string]FieldValue{
+				"PlayerType": {String: tt.playerType},
+			},
+		}
+		if got := archetypeLabelFromRecord(record); got != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.playerType, got, tt.want)
+		}
+	}
+}
+
+func TestArchetypeLabelFromRecord_DLRunStopperDisambiguation(t *testing.T) {
+	tests := []struct {
+		name       string
+		playerType string
+		position   string
+		want       string
+	}{
+		{name: "DE by PlayerType", playerType: "DE_RunStopper", position: "LE", want: "Edge Setter"},
+		{name: "DT by PlayerType", playerType: "DT_NoseTackle", position: "DT", want: "Gap Specialist"},
+		{name: "edge by position only", position: "RE", want: "Edge Setter"},
+		{name: "interior default", position: "DT", want: "Gap Specialist"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields := map[string]FieldValue{
+				"PT_DLRUNSTOPPER": {Bool: true},
+			}
+			if tt.playerType != "" {
+				fields["PlayerType"] = FieldValue{String: tt.playerType}
+			}
+			if tt.position != "" {
+				fields["Position"] = FieldValue{String: tt.position}
+			}
+			got := archetypeLabelFromRecord(Record{Fields: fields})
+			if got != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestArchetypeLabelFromRecord_PTPreferredOverPlayerType(t *testing.T) {
 	record := Record{
 		Fields: map[string]FieldValue{
-			"PlayerType":          {String: "QB_FieldGeneral"},
+			"PlayerType":            {String: "QB_FieldGeneral"},
 			"PT_QBBACKFIELDCREATOR": {Bool: true},
 		},
 	}
