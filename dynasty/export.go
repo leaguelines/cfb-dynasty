@@ -643,6 +643,7 @@ type PlayerExport struct {
 // PlayerPhysicalAbilityExport is one equipped physical ability slot on a player.
 type PlayerPhysicalAbilityExport struct {
 	Slot int    `json:"slot,omitempty"`
+	Name string `json:"name,omitempty"`
 	Tier string `json:"tier,omitempty"`
 }
 

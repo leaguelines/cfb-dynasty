@@ -3,16 +3,22 @@ package dynasty
 import "fmt"
 
 func physicalAbilitiesFromRecord(record Record) []PlayerPhysicalAbilityExport {
+	position := stringField(record, "Position")
+	archetypeLabel := archetypeLabelFromRecord(record)
 	var out []PlayerPhysicalAbilityExport
 	for slot := 1; slot <= 5; slot++ {
 		tier := normalizeEnum(stringField(record, fmt.Sprintf("PhysicalAbility%d", slot)))
 		if tier == "" || tier == "None" || tier == "Invalid" {
 			continue
 		}
-		out = append(out, PlayerPhysicalAbilityExport{
+		export := PlayerPhysicalAbilityExport{
 			Slot: slot,
 			Tier: tier,
-		})
+		}
+		if name := physicalAbilityName(position, archetypeLabel, slot); name != "" {
+			export.Name = name
+		}
+		out = append(out, export)
 	}
 	return out
 }
