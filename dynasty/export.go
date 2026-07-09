@@ -76,6 +76,7 @@ type TeamExport struct {
 	OffensiveRank    *int   `json:"offensiveRank,omitempty"`
 	DefensiveRank    *int   `json:"defensiveRank,omitempty"`
 	PrestigeRank     *int   `json:"prestigeRank,omitempty"`
+	TeamPrestige     *int   `json:"teamPrestige,omitempty"` // half-star units: 10 = 5★, 9 = 4.5★, …
 	OffensiveScheme  string `json:"offensiveScheme,omitempty"`
 	DefensiveScheme  string `json:"defensiveScheme,omitempty"`
 	Philosophy       string `json:"philosophy,omitempty"`

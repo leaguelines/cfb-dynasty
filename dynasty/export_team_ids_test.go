@@ -136,6 +136,30 @@ func TestRosterTeamIDsMatchTeamIndex(t *testing.T) {
 	if byName["UCF"] != 17 {
 		t.Fatalf("UCF roster teamId = %d want 17", byName["UCF"])
 	}
+	// Spot-check canonical roster IDs for teams involved in row/canonical collisions.
+	if byName["Middle Tennessee"] != 51 {
+		t.Fatalf("Middle Tennessee roster teamId = %d want 51", byName["Middle Tennessee"])
+	}
+	if byName["Oklahoma"] != 69 {
+		t.Fatalf("Oklahoma roster teamId = %d want 69", byName["Oklahoma"])
+	}
+	if byName["Temple"] != 88 {
+		t.Fatalf("Temple roster teamId = %d want 88", byName["Temple"])
+	}
+
+	// Player TeamIndex stores canonical IDs (e.g. Oklahoma = 69).
+	okRoster := byName["Oklahoma"]
+	for _, roster := range rosters {
+		if roster.TeamID != okRoster {
+			continue
+		}
+		for _, player := range roster.Players {
+			if player.ID == 58 { // Adebawore, TeamIndex 69
+				return
+			}
+		}
+	}
+	t.Fatal("expected Oklahoma player id 58 on Oklahoma roster")
 }
 
 func TestPlayerTeamIDUsesCanonicalNotRow(t *testing.T) {

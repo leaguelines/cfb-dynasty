@@ -55,6 +55,7 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 		export.OffensiveRank = sensibleRank(record, "OffensiveRank")
 		export.DefensiveRank = sensibleRank(record, "DefensiveRank")
 		export.PrestigeRank = sensibleRank(record, "PrestigeRank")
+		setOptionalPositiveInt(record, "TeamPrestige", &export.TeamPrestige)
 
 		export.OffensiveScheme = normalizeEnum(stringField(record, "CurrentOffensiveScheme"))
 		export.DefensiveScheme = normalizeEnum(stringField(record, "CurrentDefensiveScheme"))
