@@ -21,9 +21,10 @@ func (f *File) arrayStoreMemberRefs(storeRef *RecordReference) []*RecordReferenc
 
 	var refs []*RecordReference
 	for _, value := range arrTable.Records[rowIdx].Fields {
-		if value.Reference != nil {
-			refs = append(refs, value.Reference)
+		if isEmptyRecordReference(value.Reference) {
+			continue
 		}
+		refs = append(refs, value.Reference)
 	}
 	return refs
 }

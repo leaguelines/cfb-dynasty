@@ -63,6 +63,41 @@ func TestExportSchoolGradesAndPipelines(t *testing.T) {
 	}
 }
 
+func TestPipelineInfluenceNoDuplicateRegions(t *testing.T) {
+	file := openTestSave(t)
+	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Pipelines: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byTeam := make(map[int]map[string]int)
+	for _, entry := range export.PipelineInfluence {
+		if byTeam[entry.TeamID] == nil {
+			byTeam[entry.TeamID] = make(map[string]int)
+		}
+		byTeam[entry.TeamID][entry.Pipeline]++
+		if byTeam[entry.TeamID][entry.Pipeline] > 1 {
+			t.Fatalf("team %d has duplicate pipeline %q", entry.TeamID, entry.Pipeline)
+		}
+		if entry.InfluenceLevel == "" || entry.InfluenceLevel == "None" {
+			t.Fatalf("team %d pipeline %q missing influence level", entry.TeamID, entry.Pipeline)
+		}
+	}
+
+	maxPerTeam := 0
+	for teamID, pipelines := range byTeam {
+		if len(pipelines) > maxPerTeam {
+			maxPerTeam = len(pipelines)
+		}
+		if pipelines["EastTexas"] > 1 {
+			t.Fatalf("team %d has %d EastTexas entries", teamID, pipelines["EastTexas"])
+		}
+	}
+	if maxPerTeam > 15 {
+		t.Fatalf("expected at most ~15 pipeline regions per team, got %d", maxPerTeam)
+	}
+}
+
 func TestExportRecruits_SchoolInterest(t *testing.T) {
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true}})

@@ -88,7 +88,11 @@ func isEmptyReference(record Record, field string) bool {
 	if !ok || value.Reference == nil {
 		return true
 	}
-	return value.Reference.TableID == 0 && value.Reference.RowNumber == 0
+	return isEmptyRecordReference(value.Reference)
+}
+
+func isEmptyRecordReference(ref *RecordReference) bool {
+	return ref == nil || (ref.TableID == 0 && ref.RowNumber == 0)
 }
 
 // recordIsActive reports whether a parsed row is within the table's currently

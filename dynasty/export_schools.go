@@ -1,6 +1,9 @@
 package dynasty
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 func gradeField(record Record, name string) string {
 	return normalizeEnum(stringField(record, name))
@@ -101,9 +104,10 @@ func (f *File) buildPipelineInfluenceExports() ([]PipelineInfluenceExport, error
 			continue
 		}
 		ref, ok := team.Get("SchoolPipelineInfluenceList")
-		if !ok || ref.Reference == nil {
+		if !ok || isEmptyReference(team, "SchoolPipelineInfluenceList") {
 			continue
 		}
+		seen := make(map[string]struct{})
 		for _, memberRef := range f.arrayStoreMemberRefs(ref.Reference) {
 			if memberRef.TableID != 0 && memberRef.TableID != pipelineID {
 				continue
@@ -113,14 +117,23 @@ func (f *File) buildPipelineInfluenceExports() ([]PipelineInfluenceExport, error
 				continue
 			}
 			pipeline := normalizeEnum(stringField(row, "Pipeline"))
-			if pipeline == "" || pipeline == "Invalid" {
+			if pipeline == "" || pipeline == "Invalid" || pipeline == "None" {
 				continue
 			}
+			level := normalizeEnum(stringField(row, "InfluenceLevel"))
+			if level == "" || level == "None" || level == "Invalid" {
+				continue
+			}
+			key := fmt.Sprintf("%d:%s", teamID, pipeline)
+			if _, dup := seen[key]; dup {
+				continue
+			}
+			seen[key] = struct{}{}
 			export := PipelineInfluenceExport{
 				TeamID:         teamID,
 				TeamName:       teams.nameFromID(teamID),
 				Pipeline:       pipeline,
-				InfluenceLevel: normalizeEnum(stringField(row, "InfluenceLevel")),
+				InfluenceLevel: level,
 			}
 			setOptionalPositiveInt(row, "InfluenceValue", &export.InfluenceValue)
 			exports = append(exports, export)
