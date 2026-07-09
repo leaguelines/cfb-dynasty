@@ -25,7 +25,7 @@ func (f *File) buildRivalryExports() ([]RivalryExport, error) {
 		setOptionalPositiveInt(record, "Team1LastScore", &export.Team1LastScore)
 		setOptionalPositiveInt(record, "Team2LastScore", &export.Team2LastScore)
 		if streakTeam, ok := intFieldOK(record, "StreakTeam"); ok {
-			if id, ok := teams.exportID(streakTeam); ok {
+			if id, ok := teams.playerTeamID(streakTeam); ok {
 				export.StreakTeamID = &id
 			}
 		}

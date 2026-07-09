@@ -3,7 +3,7 @@ package dynasty
 import "sort"
 
 // buildRosterExports groups rostered players by stable team ID (Team.TeamIndex).
-// Player.TeamIndex stores a Team table row number; we remap through teamMaps.
+// Player.TeamIndex already stores that ID; resolve with playerTeamID.
 func (f *File) buildRosterExports() ([]RosterExport, error) {
 	playerTable, ok := f.PrimaryTableByName("Player")
 	if !ok {
@@ -21,11 +21,11 @@ func (f *File) buildRosterExports() ([]RosterExport, error) {
 
 	rosters := make(map[int][]PlayerExport)
 	for _, record := range playerTable.Records {
-		row, ok := intFieldOK(record, "TeamIndex")
+		stored, ok := intFieldOK(record, "TeamIndex")
 		if !ok {
 			continue
 		}
-		teamID, ok := teams.exportID(row)
+		teamID, ok := teams.playerTeamID(stored)
 		if !ok {
 			continue
 		}

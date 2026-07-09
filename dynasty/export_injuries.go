@@ -31,8 +31,8 @@ func (f *File) buildInjuryExports() ([]InjuryExport, error) {
 			export.PlayerID = playerID
 			export.FirstName = stringField(player, "FirstName")
 			export.LastName = stringField(player, "LastName")
-			if row, ok := intFieldOK(player, "TeamIndex"); ok {
-				if teamID, ok := teams.exportID(row); ok {
+			if stored, ok := intFieldOK(player, "TeamIndex"); ok {
+				if teamID, ok := teams.playerTeamID(stored); ok {
 					export.TeamID = &teamID
 					export.TeamName = teams.nameFromID(teamID)
 				}

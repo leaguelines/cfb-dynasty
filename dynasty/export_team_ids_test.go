@@ -137,3 +137,78 @@ func TestRosterTeamIDsMatchTeamIndex(t *testing.T) {
 		t.Fatalf("UCF roster teamId = %d want 17", byName["UCF"])
 	}
 }
+
+func TestPlayerTeamIDUsesCanonicalNotRow(t *testing.T) {
+	file := openSeasonSave(t)
+	teams := file.teamMaps()
+
+	// Row 69 is Middle Tennessee (canonical 51); player TeamIndex 69 is Oklahoma.
+	if id, ok := teams.exportID(69); !ok || id != 51 {
+		t.Fatalf("exportID(69) = (%d, %v) want (51, true)", id, ok)
+	}
+	if id, ok := teams.playerTeamID(69); !ok || id != 69 {
+		t.Fatalf("playerTeamID(69) = (%d, %v) want (69, true)", id, ok)
+	}
+	if name := teams.nameFromID(69); name != "Oklahoma" {
+		t.Fatalf("nameFromID(69) = %q want Oklahoma", name)
+	}
+}
+
+func TestJohnMateerOnOklahomaRoster(t *testing.T) {
+	file := openSeasonSave(t)
+	rosters, err := file.buildRosterExports()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var oklahoma, temple *RosterExport
+	for i := range rosters {
+		switch rosters[i].TeamName {
+		case "Oklahoma":
+			oklahoma = &rosters[i]
+		case "Temple":
+			temple = &rosters[i]
+		}
+	}
+	if oklahoma == nil {
+		t.Fatal("missing Oklahoma roster")
+	}
+	if oklahoma.TeamID != 69 {
+		t.Fatalf("Oklahoma teamId = %d want 69", oklahoma.TeamID)
+	}
+
+	var mateerOnOklahoma bool
+	for _, player := range oklahoma.Players {
+		if player.FirstName == "John" && player.LastName == "Mateer" {
+			mateerOnOklahoma = true
+			if player.Position != "QB" {
+				t.Fatalf("Mateer position = %q want QB", player.Position)
+			}
+			if player.TeamIndex == nil || *player.TeamIndex != 69 {
+				t.Fatalf("Mateer teamIndex = %v want 69", player.TeamIndex)
+			}
+		}
+	}
+	if !mateerOnOklahoma {
+		t.Fatal("John Mateer not found on Oklahoma roster")
+	}
+
+	if temple != nil {
+		for _, player := range temple.Players {
+			if player.FirstName == "John" && player.LastName == "Mateer" {
+				t.Fatal("John Mateer incorrectly listed on Temple roster")
+			}
+			if player.FirstName == "Scotty" && player.LastName == "Fox Jr." {
+				if player.TeamIndex == nil || *player.TeamIndex != 88 {
+					t.Fatalf("Temple QB teamIndex = %v want 88", player.TeamIndex)
+				}
+			}
+		}
+	}
+
+	// Temple canonical id 88 must not be remapped onto Oklahoma via exportID.
+	for _, player := range oklahoma.Players {
+		if player.FirstName == "Scotty" && player.LastName == "Fox Jr." {
+			t.Fatal("Temple QB Scotty Fox Jr. incorrectly on Oklahoma roster")
+		}
+	}
+}

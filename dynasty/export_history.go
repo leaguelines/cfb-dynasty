@@ -37,9 +37,9 @@ func (f *File) buildPlayerAwardExports() ([]PlayerAwardExport, error) {
 		export.TeamName = f.teamNameFromField(record, "Team")
 		if export.TeamName == "" {
 			if player, _, ok := f.playerRecordFromField(record, "Player"); ok {
-				if row, ok := intFieldOK(player, "TeamIndex"); ok {
+				if stored, ok := intFieldOK(player, "TeamIndex"); ok {
 					teams := f.teamMaps()
-					if teamID, ok := teams.exportID(row); ok {
+					if teamID, ok := teams.playerTeamID(stored); ok {
 						export.TeamID = &teamID
 						export.TeamName = teams.nameFromID(teamID)
 					}

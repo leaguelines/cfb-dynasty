@@ -159,8 +159,8 @@ func applySeasonPlayerMeta(export *PlayerSeasonStatsExport, offRecord, defRecord
 func applyPlayerIdentityToSeasonStats(export *PlayerSeasonStatsExport, player Record, teams teamIndexMaps) {
 	export.FirstName = stringField(player, "FirstName")
 	export.LastName = stringField(player, "LastName")
-	if row, ok := intFieldOK(player, "TeamIndex"); ok {
-		if teamID, ok := teams.exportID(row); ok {
+	if stored, ok := intFieldOK(player, "TeamIndex"); ok {
+		if teamID, ok := teams.playerTeamID(stored); ok {
 			export.TeamID = &teamID
 		}
 	}

@@ -35,8 +35,8 @@ func (f *File) buildLeavingPlayerExports() ([]LeavingPlayerExport, error) {
 			export.FirstName = stringField(player, "FirstName")
 			export.LastName = stringField(player, "LastName")
 			export.Position = stringField(player, "Position")
-			if row, ok := intFieldOK(player, "TeamIndex"); ok {
-				if teamID, ok := teams.exportID(row); ok {
+			if stored, ok := intFieldOK(player, "TeamIndex"); ok {
+				if teamID, ok := teams.playerTeamID(stored); ok {
 					export.TeamID = &teamID
 					export.TeamName = teams.nameFromID(teamID)
 				}

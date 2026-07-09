@@ -34,8 +34,8 @@ func (f *File) buildCoachExports() ([]CoachExport, error) {
 			IsUserControlled: boolField(record, "IsUserControlled"),
 		}
 
-		if row, ok := intFieldOK(record, "TeamIndex"); ok {
-			if teamID, ok := teams.exportID(row); ok {
+		if stored, ok := intFieldOK(record, "TeamIndex"); ok {
+			if teamID, ok := teams.playerTeamID(stored); ok {
 				export.TeamID = &teamID
 				export.TeamName = teams.nameFromID(teamID)
 			}

@@ -38,8 +38,8 @@ func applyPlayerEnrichment(f *File, player *PlayerExport, record Record, teams t
 	setOptionalPositiveInt(record, "ExperiencePoints", &player.ExperiencePoints)
 	setOptionalPositiveInt(record, "LegacyScore", &player.LegacyScore)
 
-	if row, ok := intFieldOK(record, "PrevTeamIndex"); ok {
-		if id, ok := teams.exportID(row); ok {
+	if stored, ok := intFieldOK(record, "PrevTeamIndex"); ok {
+		if id, ok := teams.playerTeamID(stored); ok {
 			player.PrevTeamIndex = &id
 		}
 	}
@@ -112,8 +112,7 @@ func buildPlayerExport(record Record) *PlayerExport {
 		case "JerseyNum":
 			setIntPtr(&player.Jersey, value.Int)
 		case "TeamIndex":
-			// Raw save value is a Team table row (including 0 for Air Force);
-			// callers remap via teamMaps so consumers see the stable Team.TeamIndex.
+			// Stored as stable Team.TeamIndex; callers normalize via playerTeamID.
 			v := int(value.Int)
 			player.TeamIndex = &v
 		}
@@ -157,14 +156,14 @@ func buildPlayerExport(record Record) *PlayerExport {
 	return player
 }
 
-// applyCanonicalTeamIndex rewrites player.TeamIndex from a Team table row
-// number to the stable Team.TeamIndex ID. Clears the field when the row is
-// missing or an FCS placeholder.
+// applyCanonicalTeamIndex normalizes player.TeamIndex to a known stable
+// Team.TeamIndex ID. Clears the field when the stored value is missing or an
+// FCS placeholder.
 func applyCanonicalTeamIndex(player *PlayerExport, teams teamIndexMaps) {
 	if player == nil || player.TeamIndex == nil {
 		return
 	}
-	if id, ok := teams.exportID(*player.TeamIndex); ok {
+	if id, ok := teams.playerTeamID(*player.TeamIndex); ok {
 		player.TeamIndex = &id
 		return
 	}

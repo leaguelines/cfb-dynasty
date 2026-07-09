@@ -63,7 +63,7 @@ func buildSchoolInterestExport(record Record, teams teamIndexMaps) *RecruitingSc
 	if !ok {
 		return nil
 	}
-	teamID, ok := teams.exportID(row)
+	teamID, ok := teams.playerTeamID(row)
 	if !ok {
 		return nil
 	}

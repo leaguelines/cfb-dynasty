@@ -1,13 +1,16 @@
 package dynasty
 
-// teamIndexMaps remaps Team table row numbers (how the save stores team
-// ownership) onto the stable Team.TeamIndex IDs that consumers expect.
+// teamIndexMaps remaps Team table row numbers onto the stable Team.TeamIndex
+// IDs that consumers expect.
 //
 // The Team table is not ordered by TeamIndex: newer programs sit at low row
 // numbers while keeping high TeamIndex values (e.g. Appalachian State is row 3
 // with TeamIndex 125). Exporting record.Index as the team id therefore
-// mislabels nearly every team when joined against player/coach TeamIndex refs
-// that already store the row number. TeamIndex 255 marks FCS placeholders.
+// mislabels nearly every team. Player and coach TeamIndex fields already store
+// the stable Team.TeamIndex ID (Oklahoma = 69); do not run those through
+// exportID, which treats its argument as a table row and misassigns players
+// when row numbers collide with another team's canonical id (row 69 is Middle
+// Tennessee, canonical 69 is Oklahoma). TeamIndex 255 marks FCS placeholders.
 type teamIndexMaps struct {
 	nameByRow map[int]string // Team table row -> display name
 	nameByID  map[int]string // Team.TeamIndex -> display name
@@ -54,11 +57,24 @@ func (f *File) teamNameByIndex() map[int]string {
 	return f.teamMaps().nameByID
 }
 
-// exportID converts a save-stored team row index into the stable Team.TeamIndex
-// ID used in JSON exports. Returns false for missing/FCS rows.
+// exportID converts a Team table row index into the stable Team.TeamIndex ID
+// used in JSON exports. Use for Team record.Index lookups only — not for
+// Player/Coach TeamIndex fields (see playerTeamID).
 func (m teamIndexMaps) exportID(row int) (int, bool) {
 	id, ok := m.idByRow[row]
 	return id, ok
+}
+
+// playerTeamID resolves TeamIndex values stored on Player, Coach, and similar
+// roster records. Those fields already encode the stable Team.TeamIndex ID.
+func (m teamIndexMaps) playerTeamID(stored int) (int, bool) {
+	if stored == fcsTeamIndexSentinel {
+		return 0, false
+	}
+	if _, ok := m.nameByID[stored]; ok {
+		return stored, true
+	}
+	return 0, false
 }
 
 // nameFromRow resolves a save-stored team row index to a display name.

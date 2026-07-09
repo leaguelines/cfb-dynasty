@@ -20,11 +20,11 @@ func (f *File) buildDepthChartExports() ([]DepthChartExport, error) {
 		if !ok {
 			continue
 		}
-		row, ok := intFieldOK(player, "TeamIndex")
+		stored, ok := intFieldOK(player, "TeamIndex")
 		if !ok {
 			continue
 		}
-		teamID, ok := teams.exportID(row)
+		teamID, ok := teams.playerTeamID(stored)
 		if !ok {
 			continue
 		}
