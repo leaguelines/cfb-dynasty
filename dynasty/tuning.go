@@ -9,8 +9,13 @@ import (
 	"sync"
 )
 
+type skillGroupBucketInfo struct {
+	labels []string
+	slots  []int // upgrade slots per bucket from tuning Primary/Secondary/TertiarySkills
+}
+
 type skillGroupIndex struct {
-	byKey map[string][]string // playerType|archetypeLabel -> bucket names
+	byKey map[string]skillGroupBucketInfo // playerType|archetypeLabel -> bucket metadata
 }
 
 var (
@@ -85,7 +90,7 @@ func discoverTuningPath(schemaDir string) string {
 }
 
 func buildSkillGroupIndex(tf *File) skillGroupIndex {
-	idx := skillGroupIndex{byKey: make(map[string][]string)}
+	idx := skillGroupIndex{byKey: make(map[string]skillGroupBucketInfo)}
 	sg, ok := tf.PrimaryTableByName("PlayerSkillGroup")
 	if !ok {
 		return idx
@@ -93,17 +98,20 @@ func buildSkillGroupIndex(tf *File) skillGroupIndex {
 	if bucketTable, ok := tf.PrimaryTableByName("PlayerSkillGroupBucket"); ok {
 		_ = bucketTable.ReadRecords()
 	}
+	if skillTable, ok := tf.PrimaryTableByName("PlayerSkill"); ok {
+		_ = skillTable.ReadRecords()
+	}
 	if err := sg.ReadRecords(); err != nil {
 		return idx
 	}
-	fallback := make(map[string][]string)
+	fallback := make(map[string]skillGroupBucketInfo)
 	for _, record := range sg.Records {
 		playerType := normalizeEnum(stringField(record, "Archetype"))
 		if playerType == "" || playerType == "First" {
 			continue
 		}
-		buckets := skillGroupBucketsFromRecord(tf, record)
-		if len(buckets) != skillGroupCapCount {
+		buckets := skillGroupBucketInfoFromRecord(tf, record)
+		if len(buckets.labels) != skillGroupCapCount {
 			continue
 		}
 		label := stringField(record, "Name")
@@ -126,12 +134,12 @@ func skillGroupKey(playerType, label string) string {
 	return playerType + "|" + label
 }
 
-func skillGroupBucketsFromRecord(f *File, record Record) []string {
+func skillGroupBucketInfoFromRecord(f *File, record Record) skillGroupBucketInfo {
 	ref, ok := record.Get("PlayerSkillsBucket")
 	if !ok || ref.Reference == nil {
-		return nil
+		return skillGroupBucketInfo{}
 	}
-	var buckets []string
+	var info skillGroupBucketInfo
 	for _, memberRef := range f.arrayStoreMemberRefs(ref.Reference) {
 		row, ok := f.RecordByReference("PlayerSkillGroupBucket", memberRef)
 		if !ok {
@@ -141,22 +149,46 @@ func skillGroupBucketsFromRecord(f *File, record Record) []string {
 		if name == "" {
 			continue
 		}
-		buckets = append(buckets, name)
+		info.labels = append(info.labels, name)
+		info.slots = append(info.slots, bucketSkillUpgradeSlots(f, row))
+		if len(info.labels) >= skillGroupCapCount {
+			break
+		}
 	}
-	return buckets
+	return info
 }
 
-func (idx skillGroupIndex) bucketLabels(record Record) []string {
+func bucketSkillUpgradeSlots(f *File, row Record) int {
+	total := 0
+	for _, field := range []string{"PrimarySkills", "SecondarySkills", "TertiarySkills"} {
+		ref, ok := row.Get(field)
+		if !ok || ref.Reference == nil {
+			continue
+		}
+		for _, memberRef := range f.arrayStoreMemberRefs(ref.Reference) {
+			skillRow, ok := f.RecordByReference("PlayerSkill", memberRef)
+			if !ok {
+				continue
+			}
+			if stringField(skillRow, "Name") != "" {
+				total++
+			}
+		}
+	}
+	return total
+}
+
+func (idx skillGroupIndex) bucketInfo(record Record) skillGroupBucketInfo {
 	if len(idx.byKey) == 0 {
-		return nil
+		return skillGroupBucketInfo{}
 	}
 	playerType := normalizeEnum(stringField(record, "PlayerType"))
 	label := archetypeLabelFromRecord(record)
 	if buckets, ok := idx.byKey[skillGroupKey(playerType, label)]; ok {
-		return append([]string(nil), buckets...)
+		return buckets
 	}
 	if buckets, ok := idx.byKey[skillGroupKey(playerType, "")]; ok {
-		return append([]string(nil), buckets...)
+		return buckets
 	}
 	prefix := playerType + "|"
 	var keys []string
@@ -167,25 +199,35 @@ func (idx skillGroupIndex) bucketLabels(record Record) []string {
 	}
 	sort.Strings(keys)
 	if len(keys) > 0 {
-		return append([]string(nil), idx.byKey[keys[len(keys)-1]]...)
+		return idx.byKey[keys[len(keys)-1]]
 	}
-	return nil
+	return skillGroupBucketInfo{}
 }
 
 func applySkillGroupLabels(player *PlayerExport, record Record, idx skillGroupIndex) {
 	if player == nil || len(player.SkillGroupCaps) == 0 {
 		return
 	}
-	labels := idx.bucketLabels(record)
-	if len(labels) == 0 {
+	info := idx.bucketInfo(record)
+	if len(info.labels) == 0 {
 		return
 	}
-	player.SkillGroupLabels = labels
+	player.SkillGroupLabels = append([]string(nil), info.labels...)
+	player.SkillGroupAttributeCounts = append([]int(nil), info.slots...)
 	groups := make([]SkillGroupExport, 0, len(player.SkillGroupCaps))
-	for i, cap := range player.SkillGroupCaps {
-		entry := SkillGroupExport{Cap: cap}
-		if i < len(labels) {
-			entry.Label = labels[i]
+	for i := range player.SkillGroupCaps {
+		entry := SkillGroupExport{Slot: i + 1}
+		if i < len(player.SkillGroupUnlockedSlots) {
+			entry.UnlockedSlots = player.SkillGroupUnlockedSlots[i]
+		}
+		if i < len(player.SkillGroupCaps) {
+			entry.CappedSlots = player.SkillGroupCaps[i]
+		}
+		if i < len(info.labels) {
+			entry.Label = info.labels[i]
+		}
+		if i < len(info.slots) {
+			entry.AttributeCount = info.slots[i]
 		}
 		groups = append(groups, entry)
 	}

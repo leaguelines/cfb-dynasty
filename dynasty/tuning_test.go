@@ -22,22 +22,30 @@ func TestSkillGroupIndexFromTuning(t *testing.T) {
 		t.Fatal(err)
 	}
 	idx := buildSkillGroupIndex(tf)
-	buckets := idx.bucketLabels(Record{Fields: map[string]FieldValue{
+	info := idx.bucketInfo(Record{Fields: map[string]FieldValue{
 		"PlayerType":        {String: "QB_FieldGeneral"},
 		"PT_QBPOCKETPASSER": {Bool: true},
 	}})
-	if len(buckets) != skillGroupCapCount {
-		t.Fatalf("buckets = %#v, want %d entries", buckets, skillGroupCapCount)
+	if len(info.labels) != skillGroupCapCount {
+		t.Fatalf("labels = %#v, want %d entries", info.labels, skillGroupCapCount)
+	}
+	if len(info.slots) != skillGroupCapCount {
+		t.Fatalf("slots = %#v, want %d entries", info.slots, skillGroupCapCount)
 	}
 	hasAccuracy := false
-	for _, name := range buckets {
+	for _, name := range info.labels {
 		if name == "Accuracy" {
 			hasAccuracy = true
 			break
 		}
 	}
 	if !hasAccuracy {
-		t.Fatalf("expected Accuracy bucket for Pocket Passer, got %#v", buckets)
+		t.Fatalf("expected Accuracy bucket for Pocket Passer, got %#v", info.labels)
+	}
+	for i, slots := range info.slots {
+		if slots <= 0 {
+			t.Fatalf("bucket %d (%s): attributeCount = %d, want > 0", i, info.labels[i], slots)
+		}
 	}
 }
 
@@ -60,6 +68,15 @@ func TestApplySkillGroupLabelsOnExport(t *testing.T) {
 			}
 			if player.SkillGroups[0].Label == "" {
 				t.Fatalf("player %d: missing skill group label", player.ID)
+			}
+			if player.SkillGroups[0].AttributeCount <= 0 {
+				t.Fatalf("player %d: missing skill group attribute count", player.ID)
+			}
+			if len(player.SkillGroupAttributeCounts) != len(player.SkillGroupCaps) {
+				t.Fatalf("player %d: %d attribute counts vs %d capped slots", player.ID, len(player.SkillGroupAttributeCounts), len(player.SkillGroupCaps))
+			}
+			if player.SkillGroupCaps[0]+player.SkillGroupUnlockedSlots[0] != skillGroupBucketMax {
+				t.Fatalf("player %d: capped+unlocked != %d", player.ID, skillGroupBucketMax)
 			}
 			return
 		}

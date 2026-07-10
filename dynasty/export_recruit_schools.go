@@ -1,8 +1,12 @@
 package dynasty
 
-import "sort"
+import (
+	"sort"
+	"strconv"
+)
 
-// arrayStoreMemberRefs returns record references stored in an array-store row.
+// arrayStoreMemberRefs returns record references stored in an array-store row,
+// ordered by the array-store slot index (fields "0", "1", ...).
 func (f *File) arrayStoreMemberRefs(storeRef *RecordReference) []*RecordReference {
 	if storeRef == nil || storeRef.TableID == 0 {
 		return nil
@@ -19,14 +23,31 @@ func (f *File) arrayStoreMemberRefs(storeRef *RecordReference) []*RecordReferenc
 		return nil
 	}
 
+	row := arrTable.Records[rowIdx]
+	keys := make([]string, 0, len(row.Fields))
+	for key := range row.Fields {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return arrayStoreFieldIndex(keys[i]) < arrayStoreFieldIndex(keys[j])
+	})
+
 	var refs []*RecordReference
-	for _, value := range arrTable.Records[rowIdx].Fields {
+	for _, key := range keys {
+		value := row.Fields[key]
 		if isEmptyRecordReference(value.Reference) {
 			continue
 		}
 		refs = append(refs, value.Reference)
 	}
 	return refs
+}
+
+func arrayStoreFieldIndex(key string) int {
+	if index, err := strconv.Atoi(key); err == nil {
+		return index
+	}
+	return 1 << 30
 }
 
 func recruitSchoolInterests(f *File, recruit Record, schoolTable *Table, teams teamIndexMaps) []RecruitingSchoolInterestExport {

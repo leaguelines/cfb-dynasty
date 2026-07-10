@@ -130,9 +130,11 @@ func buildPlayerExport(record Record) *PlayerExport {
 	player.IsImpactPlayer = boolField(record, "IsImpactPlayer")
 	player.IsCaptain = boolField(record, "PLYR_ISCAPTAIN")
 
-	if caps, total, ok := skillGroupCapsFromRecord(record); ok {
-		player.SkillGroupCaps = caps
-		player.SkillGroupCapTotal = total
+	if slots, ok := skillGroupSlotsFromRecord(record); ok {
+		player.SkillGroupCaps = slots.capped
+		player.SkillGroupUnlockedSlots = slots.unlocked
+		player.SkillGroupCapTotal = totalCappedSlots(slots)
+		player.SkillGroupUnlockedTotal = sumInts(slots.unlocked)
 	}
 	applyPlayerRosterFields(player, record)
 

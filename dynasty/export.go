@@ -723,10 +723,13 @@ type PlayerExport struct {
 	Jersey             *int           `json:"jersey,omitempty"`
 	TeamIndex          *int           `json:"teamIndex,omitempty"`
 	Ratings            map[string]int              `json:"ratings,omitempty"`
-	SkillGroupCaps     []int                       `json:"skillGroupCaps,omitempty"`
-	SkillGroupLabels   []string                    `json:"skillGroupLabels,omitempty"`
-	SkillGroups        []SkillGroupExport          `json:"skillGroups,omitempty"`
-	SkillGroupCapTotal int                         `json:"skillGroupCapTotal,omitempty"`
+	SkillGroupCaps            []int              `json:"skillGroupCaps,omitempty"`            // greyed/capped upgrade slots per bucket
+	SkillGroupUnlockedSlots   []int              `json:"skillGroupUnlockedSlots,omitempty"`   // unlocked upgrade slots saved per bucket (0..20)
+	SkillGroupLabels          []string           `json:"skillGroupLabels,omitempty"`
+	SkillGroupAttributeCounts []int              `json:"skillGroupAttributeCounts,omitempty"` // attribute definitions per bucket from tuning
+	SkillGroups               []SkillGroupExport `json:"skillGroups,omitempty"`
+	SkillGroupCapTotal        int                `json:"skillGroupCapTotal,omitempty"`        // total greyed/capped upgrade slots
+	SkillGroupUnlockedTotal   int                `json:"skillGroupUnlockedTotal,omitempty"`     // total unlocked upgrade slots (recruit ceiling proxy)
 	RedshirtStatus     string                      `json:"redshirtStatus,omitempty"`
 	IsNIL              bool                        `json:"isNIL,omitempty"`
 	NILBaseValue       *int                        `json:"nilBaseValue,omitempty"`
@@ -757,10 +760,13 @@ type PlayerExport struct {
 	ConsecutiveYearsWithTeam *int                  `json:"consecutiveYearsWithTeam,omitempty"`
 }
 
-// SkillGroupExport pairs a skill-group cap with its tuning label when available.
+// SkillGroupExport pairs per-bucket cap state with its tuning label when available.
 type SkillGroupExport struct {
-	Label string `json:"label,omitempty"`
-	Cap   int    `json:"cap"`
+	Slot           int    `json:"slot,omitempty"` // save slot 1..6 (SkillGroupCap1..6)
+	Label          string `json:"label,omitempty"`
+	CappedSlots    int    `json:"cappedSlots,omitempty"`    // greyed-out upgrade slots in the UI
+	UnlockedSlots  int    `json:"unlockedSlots,omitempty"`  // upgrade slots still available (saved value)
+	AttributeCount int    `json:"attributeCount,omitempty"` // number of attributes in the bucket from tuning
 }
 
 // PlayerPhysicalAbilityExport is one equipped physical ability slot on a player.

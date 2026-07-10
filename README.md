@@ -212,25 +212,21 @@ cfb-dynasty export -schema-dir ./schemas --recruits /path/to/Dynasty1 | \
   jq '.recruits[] | select(.nationalRank != null and .player != null) |
       {rank: .nationalRank, name: "\(.player.firstName) \(.player.lastName)",
        position: .player.position, archetype: .player.archetypeLabel, overall: .player.overall,
-       skillCaps: .player.skillGroupCaps, skillGroups: .player.skillGroups, skillCapTotal: .player.skillGroupCapTotal}'
+       skillCaps: .player.skillGroupCaps, skillGroups: .player.skillGroups, skillCapTotal: .player.skillGroupCapTotal, unlockedTotal: .player.skillGroupUnlockedTotal}'
 ```
 
 ### Skill group caps
 
 Every player (including a recruit's linked `player`) exports its six skill-group
-caps read straight from the save:
+cap slots read straight from the save:
 
-- `skillGroupCaps` — the six positional caps (`SkillGroupCap1..6`).
-- `skillGroupCapTotal` — their sum (a strong proxy for a recruit's ceiling / star tier).
-- `skillGroups` — when tuning data is available, each cap is paired with its UI
-  bucket name (for example `Accuracy`, `IQ`, `Power`) via `skillGroupLabels`.
+- `skillGroupCaps` — greyed-out/capped upgrade slots per bucket (`SkillGroupCapMax - saved value`, 0..20 each).
+- `skillGroupUnlockedSlots` — unlocked upgrade slots still available in each bucket (raw `SkillGroupCap1..6` save values).
+- `skillGroupCapTotal` — total greyed-out upgrade slots across all six buckets (sum of `skillGroupCaps`).
+- `skillGroupUnlockedTotal` — total unlocked upgrade slots (sum of save values; useful recruit ceiling proxy).
+- `skillGroups` — when tuning data is available, each bucket includes its UI label, capped/unlocked slot counts, and `attributeCount` (number of individual attributes in that bucket from tuning).
 
-Caps are stored in the save; bucket **names** come from `dynasty-tuning-binary.FTC`
-in the game install. Place that file under your `--schema-dir` as
-`cfb27-db-data/<patch>/dynasty-tuning-binary.FTC`, or pass `--tuning-path` on
-export. Without tuning data, caps export as ordered unnamed values. Only the
-per-group *cap* is known — individual ratings inside each group are
-tuning-driven and not in the save.
+Each bucket has up to 20 upgrade slots in the save (`SkillGroupCapMax` from tuning). The UI shows 10 segments per bucket, but the save tracks capacity on a 0..20 scale. Bucket **names** and attribute lists come from `dynasty-tuning-binary.FTC` in the game install. Place that file under your `--schema-dir` as `cfb27-db-data/<patch>/dynasty-tuning-binary.FTC`, or pass `--tuning-path` on export. Without tuning data, capped/unlocked counts still export in save slot order but remain unlabeled.
 
 ### Per-game player stats
 
