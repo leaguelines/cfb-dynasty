@@ -11,6 +11,7 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 	}
 
 	conferenceByTeam := f.buildConferenceByTeamIndex()
+	classIdx := f.recruitingClassIndex()
 
 	exports := make([]TeamExport, 0, teamTable.ActiveRecordCount())
 	for _, record := range teamTable.Records {
@@ -85,6 +86,7 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 		setOptionalPositiveInt(record, "RecruitProgramPointsSpent", &export.RecruitProgramPointsSpent)
 		setOptionalPositiveInt(record, "ScoutingPoints", &export.ScoutingPoints)
 		export.RecruitingBoard = teamRecruitingBoardFromRecord(record, f)
+		export.RecruitingClass = recruitingClassExportForTeam(f, record, classIdx)
 		export.StaffIDs = teamStaffIDsFromRecord(record)
 
 		exports = append(exports, export)

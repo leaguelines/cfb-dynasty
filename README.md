@@ -20,7 +20,7 @@ go get github.com/leaguelines/cfb-dynasty/dynasty
 
 | Area | Coverage |
 |------|----------|
-| Season / teams | Year, week, phase; schools with conference, W–L, poll ranks |
+| Season / teams | Year, week, phase; schools with conference, W–L, poll ranks, recruiting class ranks/score |
 | Rosters | Active players with ratings, archetypes, skill-group caps and labels (when tuning data is available) |
 | Games | Schedule, scores, team box scores, attributed player lines (offense / defense / special teams) |
 | Season stats | Player and team season totals |
@@ -150,7 +150,7 @@ cfb-dynasty export -schema-dir ./schemas --games --no-game-stats /path/to/Dynast
 |------|-------------|----------|
 | *(default)* | all below | Everything when no section flags are set |
 | `--season` | `season` | Current year, week, phase |
-| `--teams` | `teams` | Schools, records, poll ranks |
+| `--teams` | `teams` | Schools, records, poll ranks, recruiting class ranks/score |
 | `--rosters` | `rosters` | Active rosters with player ratings |
 | `--games` | `games` | Schedule, scores, optional per-game stats |
 | `--recruits` | `recruits` | Recruiting board + nested `player` attributes |
@@ -204,6 +204,16 @@ not the Team table row order. Newer programs keep high TeamIndex values while
 sitting earlier in the table (for example Appalachian State is row 3 with id
 125), so row numbers must not be used as join keys. Air Force is id `0`. FCS
 placeholder slots (`TeamIndex` 255) are omitted.
+
+### Recruiting class ranks
+
+Each `teams[]` entry can include `recruitingClass` after signing day:
+
+- `nationalRank` / `conferenceRank` — stored on the `Team` row as `TopClassRank` and `TopClassConferenceRank`.
+- `score` — derived from the team's `CommittedPlayers` list: each commit's `CommitScore` is weighted by national rank using `TopClassesRankWeightPercentageTable` from `dynasty-tuning-binary.FTC` (`score += commitScore * weight / 100`).
+- `commitCount` — number of committed recruits included in the score.
+
+Ranks are populated once the game evaluates top classes (typically post-signing). The score is not stored directly in the save; it is recomputed at export time from commit data plus tuning weights. Without tuning FTC, ranks still export but `score` is omitted.
 
 ### Example: recruits with `jq`
 

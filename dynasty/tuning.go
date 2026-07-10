@@ -9,9 +9,15 @@ import (
 	"sync"
 )
 
+type skillGroupAttributeDef struct {
+	name          string
+	playerAbility string
+}
+
 type skillGroupBucketInfo struct {
-	labels []string
-	slots  []int // upgrade slots per bucket from tuning Primary/Secondary/TertiarySkills
+	labels     []string
+	slots      []int // upgrade slots per bucket from tuning Primary/Secondary/TertiarySkills
+	attributes [][]skillGroupAttributeDef
 }
 
 type skillGroupIndex struct {
@@ -150,7 +156,9 @@ func skillGroupBucketInfoFromRecord(f *File, record Record) skillGroupBucketInfo
 			continue
 		}
 		info.labels = append(info.labels, name)
-		info.slots = append(info.slots, bucketSkillUpgradeSlots(f, row))
+		skills := bucketSkillsFromRow(f, row)
+		info.slots = append(info.slots, len(skills))
+		info.attributes = append(info.attributes, skills)
 		if len(info.labels) >= skillGroupCapCount {
 			break
 		}
@@ -158,8 +166,8 @@ func skillGroupBucketInfoFromRecord(f *File, record Record) skillGroupBucketInfo
 	return info
 }
 
-func bucketSkillUpgradeSlots(f *File, row Record) int {
-	total := 0
+func bucketSkillsFromRow(f *File, row Record) []skillGroupAttributeDef {
+	var skills []skillGroupAttributeDef
 	for _, field := range []string{"PrimarySkills", "SecondarySkills", "TertiarySkills"} {
 		ref, ok := row.Get(field)
 		if !ok || ref.Reference == nil {
@@ -170,12 +178,21 @@ func bucketSkillUpgradeSlots(f *File, row Record) int {
 			if !ok {
 				continue
 			}
-			if stringField(skillRow, "Name") != "" {
-				total++
+			ability := stringField(skillRow, "PlayerAbility")
+			if ability == "" {
+				continue
 			}
+			skills = append(skills, skillGroupAttributeDef{
+				name:          stringField(skillRow, "Name"),
+				playerAbility: ability,
+			})
 		}
 	}
-	return total
+	return skills
+}
+
+func bucketSkillUpgradeSlots(f *File, row Record) int {
+	return len(bucketSkillsFromRow(f, row))
 }
 
 func (idx skillGroupIndex) bucketInfo(record Record) skillGroupBucketInfo {
@@ -229,7 +246,27 @@ func applySkillGroupLabels(player *PlayerExport, record Record, idx skillGroupIn
 		if i < len(info.slots) {
 			entry.AttributeCount = info.slots[i]
 		}
+		if i < len(info.attributes) {
+			for _, attr := range info.attributes[i] {
+				ae := SkillGroupAttributeExport{
+					Name:          attr.name,
+					PlayerAbility: attr.playerAbility,
+					RatingKey:     playerAbilityRatingKey(attr.playerAbility),
+				}
+				if player.Ratings != nil {
+					if val, ok := player.Ratings[ae.RatingKey]; ok {
+						v := val
+						ae.Rating = &v
+					}
+				}
+				entry.Attributes = append(entry.Attributes, ae)
+			}
+		}
 		groups = append(groups, entry)
 	}
 	player.SkillGroups = groups
+}
+
+func playerAbilityRatingKey(ability string) string {
+	return ability + "Rating"
 }

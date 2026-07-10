@@ -120,6 +120,18 @@ type TeamExport struct {
 	RecruitProgramPointsSpent  *int `json:"recruitProgramPointsSpent,omitempty"`
 	ScoutingPoints             *int `json:"scoutingPoints,omitempty"`
 	RecruitingBoard            *TeamRecruitingBoardExport `json:"recruitingBoard,omitempty"`
+	RecruitingClass            *TeamRecruitingClassExport `json:"recruitingClass,omitempty"`
+}
+
+// TeamRecruitingClassExport is a team's signing-class rank and quality score.
+// National and conference ranks are stored on the Team row after signing day.
+// Score is derived from committed recruits' CommitScore values weighted by
+// TopClassesRankWeightPercentageTable in dynasty-tuning-binary.FTC.
+type TeamRecruitingClassExport struct {
+	NationalRank   *int `json:"nationalRank,omitempty"`
+	ConferenceRank *int `json:"conferenceRank,omitempty"`
+	Score          int  `json:"score,omitempty"`
+	CommitCount    int  `json:"commitCount,omitempty"`
 }
 
 // TeamRecruitingBoardExport is a team's recruiting hour budget state.
@@ -762,11 +774,20 @@ type PlayerExport struct {
 
 // SkillGroupExport pairs per-bucket cap state with its tuning label when available.
 type SkillGroupExport struct {
-	Slot           int    `json:"slot,omitempty"` // save slot 1..6 (SkillGroupCap1..6)
-	Label          string `json:"label,omitempty"`
-	CappedSlots    int    `json:"cappedSlots,omitempty"`    // greyed-out upgrade slots in the UI
-	UnlockedSlots  int    `json:"unlockedSlots,omitempty"`  // upgrade slots still available (saved value)
-	AttributeCount int    `json:"attributeCount,omitempty"` // number of attributes in the bucket from tuning
+	Slot           int                         `json:"slot,omitempty"` // save slot 1..6 (SkillGroupCap1..6)
+	Label          string                      `json:"label,omitempty"`
+	CappedSlots    int                         `json:"cappedSlots,omitempty"`    // greyed-out upgrade slots in the UI
+	UnlockedSlots  int                         `json:"unlockedSlots,omitempty"`  // upgrade slots still available (saved value)
+	AttributeCount int                         `json:"attributeCount,omitempty"` // number of attributes in the bucket from tuning
+	Attributes     []SkillGroupAttributeExport `json:"attributes,omitempty"`
+}
+
+// SkillGroupAttributeExport is one upgradeable attribute within a skill group bucket.
+type SkillGroupAttributeExport struct {
+	Name          string `json:"name,omitempty"`
+	PlayerAbility string `json:"playerAbility,omitempty"`
+	RatingKey     string `json:"ratingKey,omitempty"`
+	Rating        *int   `json:"rating,omitempty"`
 }
 
 // PlayerPhysicalAbilityExport is one equipped physical ability slot on a player.
