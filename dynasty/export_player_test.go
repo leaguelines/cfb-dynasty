@@ -42,8 +42,9 @@ func TestBuildPlayerExport_IsAthFromAlternates(t *testing.T) {
 }
 
 func TestExportRecruits_IsAth(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
-	export, err := file.Export()
+	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,6 +72,7 @@ func TestExportRecruits_IsAth(t *testing.T) {
 }
 
 func TestPlayerAlternatePositions(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	positions, err := file.playerAlternatePositions()
 	if err != nil {
@@ -80,7 +82,7 @@ func TestPlayerAlternatePositions(t *testing.T) {
 		t.Fatal("expected recruit-to-player alternate position map")
 	}
 
-	export, err := file.Export()
+	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,8 +150,9 @@ func TestBuildPlayerExport_WeightAndDevTrait(t *testing.T) {
 }
 
 func TestExportRosters_ImpactPlayerAndCaptain(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
-	export, err := file.Export()
+	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Rosters: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,8 +178,9 @@ func TestExportRosters_ImpactPlayerAndCaptain(t *testing.T) {
 }
 
 func TestExportRecruits_DevTrait(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
-	export, err := file.Export()
+	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true}})
 	if err != nil {
 		t.Fatal(err)
 	}

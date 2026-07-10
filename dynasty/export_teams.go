@@ -67,11 +67,48 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 		if points, ok := intFieldOK(record, "CFPPoll_CurrentPoints"); ok && points > 0 {
 			export.CFPPollPoints = &points
 		}
+		setOptionalPositiveInt(record, "CoachesPoll_FirstPlaceVotes", &export.CoachesPollFirstPlaceVotes)
+		export.CoachesPollLastWeekRank = sensibleRank(record, "CoachesPoll_LastWeeksRank")
+		export.MediaPollLastWeekRank = sensibleRank(record, "MediaPoll_LastWeeksRank")
+		export.CFPPollLastWeekRank = sensibleRank(record, "CFPPoll_LastWeeksRank")
+		if v, ok := intFieldOK(record, "CurSeasonConfStanding"); ok && v >= 0 {
+			export.ConferenceStanding = &v
+		}
+		if v, ok := intFieldOK(record, "CurSeasonDivStanding"); ok && v >= 0 {
+			export.DivisionStanding = &v
+		}
+		if streak, ok := intFieldOK(record, "SeasonWinLossStreak"); ok && streak != 0 {
+			export.SeasonWinLossStreak = &streak
+		}
+		setOptionalPositiveInt(record, "ProgramPointBudget", &export.ProgramPointBudget)
+		setOptionalPositiveInt(record, "RemainingProgramPoints", &export.RemainingProgramPoints)
+		setOptionalPositiveInt(record, "RecruitProgramPointsSpent", &export.RecruitProgramPointsSpent)
+		setOptionalPositiveInt(record, "ScoutingPoints", &export.ScoutingPoints)
+		export.RecruitingBoard = teamRecruitingBoardFromRecord(record, f)
 		export.StaffIDs = teamStaffIDsFromRecord(record)
 
 		exports = append(exports, export)
 	}
 	return exports, nil
+}
+
+func teamRecruitingBoardFromRecord(record Record, f *File) *TeamRecruitingBoardExport {
+	ref, ok := record.Get("RecruitingBoard")
+	if !ok || ref.Reference == nil {
+		return nil
+	}
+	board, ok := f.RecordByReference("RecruitingBoard", ref.Reference)
+	if !ok {
+		return nil
+	}
+	out := &TeamRecruitingBoardExport{}
+	setOptionalPositiveInt(board, "RecruitingHoursAssigned", &out.HoursAssigned)
+	setOptionalPositiveInt(board, "RecruitingHoursProcessed", &out.HoursProcessed)
+	setOptionalPositiveInt(board, "RecruitingHoursTotal", &out.HoursTotal)
+	if out.HoursAssigned == nil && out.HoursProcessed == nil && out.HoursTotal == nil {
+		return nil
+	}
+	return out
 }
 
 func teamStaffIDsFromRecord(record Record) *TeamStaffIDsExport {

@@ -3,6 +3,7 @@ package dynasty
 import "testing"
 
 func TestExportStandaloneSections(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{
@@ -26,6 +27,7 @@ func TestExportStandaloneSections(t *testing.T) {
 }
 
 func TestExportTeamAndCoachEnrichment(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{Teams: true, Coaches: true},
@@ -59,6 +61,7 @@ func TestExportTeamAndCoachEnrichment(t *testing.T) {
 }
 
 func TestExportPositionChangesBuilder(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	changes, err := file.buildPositionChangeExports()
 	if err != nil {

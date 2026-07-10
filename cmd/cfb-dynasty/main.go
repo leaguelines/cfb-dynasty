@@ -15,10 +15,12 @@ const usage = `cfb-dynasty — read College Football dynasty saves and export le
 Usage:
   cfb-dynasty inspect [flags] <save-file>
   cfb-dynasty export  [flags] <save-file>
+  cfb-dynasty recruiting-tunables [flags]
 
 Commands:
   inspect   Show container metadata without full parsing
   export    Export parsed dynasty data as JSON
+  recruiting-tunables  Dump recruiting formula constants from game tuning data
 
 Export flags (default: all sections):
   --games          Include schedule/scores
@@ -44,6 +46,9 @@ Export flags (default: all sections):
 When one or more section flags is set, only those sections are exported.
 With no section flags, everything is included.
 
+Export also accepts:
+  --tuning-path    Path to dynasty-tuning-binary.FTC (skill group labels; auto-discovered under --schema-dir when omitted)
+
 Global flags:
   -h        Show help
 `
@@ -59,6 +64,8 @@ func main() {
 		os.Exit(runInspect(os.Args[2:]))
 	case "export":
 		os.Exit(runExport(os.Args[2:]))
+	case "recruiting-tunables":
+		os.Exit(runRecruitingTunables(os.Args[2:]))
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		os.Exit(0)
@@ -128,6 +135,7 @@ func runExport(args []string) int {
 	output := fs.String("o", "", "write JSON to file (default: stdout)")
 	pretty := fs.Bool("pretty", true, "indent JSON output")
 	schemaDir := fs.String("schema-dir", "", "directory containing gzip schema bundles")
+	tuningPath := fs.String("tuning-path", "", "path to dynasty-tuning-binary.FTC for skill group labels (auto-discovered under schema-dir when omitted)")
 	includeGames := fs.Bool("games", false, "include games (schedule/scores)")
 	includeRecruits := fs.Bool("recruits", false, "include recruits and player attributes")
 	includeSeason := fs.Bool("season", false, "include season metadata")
@@ -159,6 +167,7 @@ func runExport(args []string) int {
 	settings := dynasty.DefaultSettings()
 	settings.AutoParse = true
 	settings.SchemaDir = *schemaDir
+	settings.TuningPath = *tuningPath
 	file, err := dynasty.Open(path, &settings)
 	if err != nil {
 		if dynasty.IsNotImplemented(err) {
@@ -230,6 +239,35 @@ func runExport(args []string) int {
 
 	if err := os.WriteFile(*output, data, 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "export: write: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func runRecruitingTunables(args []string) int {
+	fs := flag.NewFlagSet("recruiting-tunables", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	output := fs.String("o", "", "write JSON to file (default: stdout)")
+	schemaDir := fs.String("schema-dir", "", "directory containing schema bundle and optional cfb27-db-data tuning FTC")
+	tuningPath := fs.String("tuning", "", "path to dynasty-tuning-binary.FTC (auto-discovered under schema-dir when omitted)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	data, err := dynasty.RecruitingTunablesJSON(*schemaDir, *tuningPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "recruiting-tunables: %v\n", err)
+		return 1
+	}
+	if *output == "" {
+		os.Stdout.Write(data)
+		if len(data) == 0 || data[len(data)-1] != '\n' {
+			fmt.Println()
+		}
+		return 0
+	}
+	if err := os.WriteFile(*output, data, 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "recruiting-tunables: write: %v\n", err)
 		return 1
 	}
 	return 0

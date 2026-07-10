@@ -1,25 +1,10 @@
 package dynasty
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
+import "testing"
 
 func TestTeamShortNameOffset(t *testing.T) {
-	savePath := filepath.Join("..", "data", "DYNASTY-TESTSAVE-27")
-	schemaDir := filepath.Join("..", "data")
-	if _, err := os.Stat(savePath); err != nil {
-		t.Skip("test save not available:", savePath)
-	}
-
-	settings := DefaultSettings()
-	settings.SchemaDir = schemaDir
-	settings.AutoParse = true
-	file, err := Open(savePath, &settings)
-	if err != nil {
-		t.Fatal(err)
-	}
+	skipIfShortIntegration(t)
+	file := openTestSave(t)
 
 	team, ok := file.PrimaryTableByName("Team")
 	if !ok {

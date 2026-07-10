@@ -24,6 +24,9 @@ const (
 
 	// playerWeightOffset is added to the raw Weight int stored in dynasty saves.
 	playerWeightOffset = 160
+
+	// sIntBias is the minValue offset EA uses for signed ints in tuning FTC array stores.
+	sIntBias = 0x80000000
 )
 
 // Format describes the on-disk container variant.

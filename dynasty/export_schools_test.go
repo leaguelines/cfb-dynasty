@@ -3,6 +3,7 @@ package dynasty
 import "testing"
 
 func TestRecruitSchoolInterests(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	recruitTable, ok := file.PrimaryTableByName("Recruit")
 	if !ok {
@@ -42,6 +43,7 @@ func TestRecruitSchoolInterests(t *testing.T) {
 }
 
 func TestExportSchoolGradesAndPipelines(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{SchoolGrades: true, Pipelines: true},
@@ -64,6 +66,7 @@ func TestExportSchoolGradesAndPipelines(t *testing.T) {
 }
 
 func TestPipelineInfluenceNoDuplicateRegions(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Pipelines: true}})
 	if err != nil {
@@ -99,6 +102,7 @@ func TestPipelineInfluenceNoDuplicateRegions(t *testing.T) {
 }
 
 func TestExportRecruits_SchoolInterest(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true}})
 	if err != nil {

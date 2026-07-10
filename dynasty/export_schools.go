@@ -58,6 +58,15 @@ func (f *File) buildSchoolGradesExports() ([]SchoolGradesExport, error) {
 			ProPotentialK:        gradeField(gradesRecord, "ProPotentialGradeK"),
 			ProPotentialP:        gradeField(gradesRecord, "ProPotentialGradeP"),
 		}
+		setOptionalPositiveInt(gradesRecord, "AthleticFacilitiesScore", &export.AthleticFacilitiesScore)
+		setOptionalPositiveInt(gradesRecord, "CampusLifestyleScore", &export.CampusLifestyleScore)
+		setOptionalPositiveInt(gradesRecord, "BrandExposureNationalTVPlayed", &export.BrandExposureNationalTVPlayed)
+		setOptionalPositiveInt(gradesRecord, "BrandExposureNationalTVWins", &export.BrandExposureNationalTVWins)
+		setOptionalPositiveInt(gradesRecord, "BrandExposureStreamingPlayed", &export.BrandExposureStreamingPlayed)
+		setOptionalPositiveInt(gradesRecord, "BrandExposureStreamingWins", &export.BrandExposureStreamingWins)
+		setOptionalPositiveInt(gradesRecord, "BrandExposureGamesOfTheWeekPlayed", &export.BrandExposureGOTWPlayed)
+		setOptionalPositiveInt(gradesRecord, "BrandExposureGamesOfTheWeekWins", &export.BrandExposureGOTWWins)
+		setOptionalPositiveInt(gradesRecord, "ChampionshipContenderCurrentYearRank", &export.ChampionshipContenderCurrentRank)
 		if !hasSchoolGrades(export) {
 			continue
 		}

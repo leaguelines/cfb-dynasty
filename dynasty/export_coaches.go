@@ -55,7 +55,16 @@ func (f *File) buildCoachExports() ([]CoachExport, error) {
 		export.DominantArchetype = normalizeEnum(stringField(record, "DominantArchetype"))
 		export.SpecialtyType = normalizeEnum(stringField(record, "SpecialtyType"))
 		export.SeasonGoal = normalizeEnum(stringField(record, "SeasonalGoal"))
+		export.CoachDemeanor = normalizeEnum(stringField(record, "COACH_DEMEANOR"))
 		export.PositionRatings = coachPositionRatings(record)
+		if streak, ok := intFieldOK(record, "CurrentWinStreak"); ok && streak != 0 {
+			export.CurrentWinStreak = &streak
+		}
+		setOptionalPositiveInt(record, "COACH_OFFTENDENCYRUNPASS", &export.OffTendencyRunPass)
+		setOptionalPositiveInt(record, "COACH_DEFTENDENCYRUNPASS", &export.DefTendencyRunPass)
+		setOptionalPositiveInt(record, "COACH_OFFTENDENCYAGGRESSCONSERV", &export.OffTendencyAggressive)
+		setOptionalPositiveInt(record, "COACH_DEFTENDENCYAGGRESSCONSERV", &export.DefTendencyAggressive)
+		setOptionalPositiveInt(record, "EarnedContractPoints_ThisYear", &export.EarnedContractPointsThisYear)
 
 		export.Career = buildCoachCareerStatsExport(f, record)
 		exports = append(exports, export)

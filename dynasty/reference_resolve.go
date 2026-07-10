@@ -1,5 +1,10 @@
 package dynasty
 
+// isNilReference reports whether a save reference is unset (TableID 0, RowNumber 0).
+func isNilReference(ref *RecordReference) bool {
+	return ref == nil || (ref.TableID == 0 && ref.RowNumber == 0)
+}
+
 // RecordByReference loads a row from the table implied by ref and the schema field type name.
 // When TableID is 0 the game stores a row index into the named table (CFB/Madden local ref).
 func (f *File) RecordByReference(tableName string, ref *RecordReference) (Record, bool) {

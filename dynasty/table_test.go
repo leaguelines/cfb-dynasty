@@ -1,10 +1,6 @@
 package dynasty
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
+import "testing"
 
 func TestParseMinimalSave(t *testing.T) {
 	path := t.TempDir() + "/test.sav"
@@ -29,22 +25,8 @@ func TestParseMinimalSave(t *testing.T) {
 }
 
 func TestDiscoverTablesRealSave(t *testing.T) {
-	savePath := filepath.Join("..", "data", "DYNASTY-TESTSAVE-27")
-	schemaDir := filepath.Join("..", "data")
-	if _, err := os.Stat(savePath); err != nil {
-		t.Skip("test save not available:", savePath)
-	}
-
-	settings := DefaultSettings()
-	settings.SchemaDir = schemaDir
-	file, err := Open(savePath, &settings)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := file.Parse(); err != nil {
-		t.Fatal(err)
-	}
-
+	skipIfShortIntegration(t)
+	file := openTestSave(t)
 	tables := file.Tables()
 	if len(tables) < 2000 {
 		t.Fatalf("tables = %d, want at least 2000", len(tables))
@@ -104,19 +86,8 @@ func TestDiscoverTablesRealSave(t *testing.T) {
 }
 
 func TestParseTableHeaderSeasonGame(t *testing.T) {
-	savePath := filepath.Join("..", "data", "DYNASTY-TESTSAVE-27")
-	if _, err := os.Stat(savePath); err != nil {
-		t.Skip("test save not available:", savePath)
-	}
-
-	settings := DefaultSettings()
-	file, err := Open(savePath, &settings)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := file.Parse(); err != nil {
-		t.Fatal(err)
-	}
+	skipIfShortIntegration(t)
+	file := openTestSave(t)
 
 	var seasonGame *Table
 	for i := range file.Tables() {

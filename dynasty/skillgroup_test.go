@@ -44,8 +44,9 @@ func skillGroupCapField(i int) string {
 }
 
 func TestExportRecruitSkillGroupCaps(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
-	export, err := file.Export()
+	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true}})
 	if err != nil {
 		t.Fatal(err)
 	}

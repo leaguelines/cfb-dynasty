@@ -1,28 +1,6 @@
 package dynasty
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
-
-func openSeasonSave(t *testing.T) *File {
-	t.Helper()
-	savePath := filepath.Join("..", "data", "DYNASTY-2026OFFLINEFINAL")
-	schemaDir := filepath.Join("..", "data")
-	if _, err := os.Stat(savePath); err != nil {
-		t.Skip("season save not available:", savePath)
-	}
-
-	settings := DefaultSettings()
-	settings.SchemaDir = schemaDir
-	settings.AutoParse = true
-	file, err := Open(savePath, &settings)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return file
-}
+import "testing"
 
 func TestTeamIDFromRecordSkipsFCS(t *testing.T) {
 	okRec := Record{Fields: map[string]FieldValue{"TeamIndex": {Int: 125}}}
@@ -38,6 +16,7 @@ func TestTeamIDFromRecordSkipsFCS(t *testing.T) {
 }
 
 func TestTeamMapsRemapRowToCanonicalID(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openSeasonSave(t)
 	teams := file.teamMaps()
 
@@ -73,6 +52,7 @@ func TestTeamMapsRemapRowToCanonicalID(t *testing.T) {
 }
 
 func TestExportedTeamIDsMatchTeamIndex(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openSeasonSave(t)
 	exports, err := file.buildTeamExports()
 	if err != nil {
@@ -109,6 +89,7 @@ func TestExportedTeamIDsMatchTeamIndex(t *testing.T) {
 }
 
 func TestRosterTeamIDsMatchTeamIndex(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openSeasonSave(t)
 	rosters, err := file.buildRosterExports()
 	if err != nil {
@@ -163,6 +144,7 @@ func TestRosterTeamIDsMatchTeamIndex(t *testing.T) {
 }
 
 func TestPlayerTeamIDUsesCanonicalNotRow(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openSeasonSave(t)
 	teams := file.teamMaps()
 
@@ -179,6 +161,7 @@ func TestPlayerTeamIDUsesCanonicalNotRow(t *testing.T) {
 }
 
 func TestJohnMateerOnOklahomaRoster(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openSeasonSave(t)
 	rosters, err := file.buildRosterExports()
 	if err != nil {

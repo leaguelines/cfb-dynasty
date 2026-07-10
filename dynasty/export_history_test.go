@@ -1,29 +1,10 @@
 package dynasty
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
-
-func openFullSeasonSave(t *testing.T) *File {
-	t.Helper()
-	savePath := filepath.Join("..", "data", "DYNASTY-2026OFFLINEFINAL")
-	if _, err := os.Stat(savePath); err != nil {
-		t.Skip("full season save not available:", savePath)
-	}
-	settings := DefaultSettings()
-	settings.SchemaDir = filepath.Join("..", "data")
-	settings.AutoParse = true
-	file, err := Open(savePath, &settings)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return file
-}
+import "testing"
 
 func TestHistoryExportsSkipInactiveRows(t *testing.T) {
-	file := openFullSeasonSave(t)
+	skipIfShortIntegration(t)
+	file := openSeasonSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{History: true},
 	})
@@ -58,7 +39,8 @@ func TestHistoryExportsSkipInactiveRows(t *testing.T) {
 }
 
 func TestStatRecordPositionsInferredFromStatType(t *testing.T) {
-	file := openFullSeasonSave(t)
+	skipIfShortIntegration(t)
+	file := openSeasonSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{History: true},
 	})
@@ -83,7 +65,8 @@ func TestStatRecordPositionsInferredFromStatType(t *testing.T) {
 }
 
 func TestRecordBookScopesAndPeriods(t *testing.T) {
-	file := openFullSeasonSave(t)
+	skipIfShortIntegration(t)
+	file := openSeasonSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{History: true},
 	})

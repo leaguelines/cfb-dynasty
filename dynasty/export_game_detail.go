@@ -73,6 +73,23 @@ func applyGameDetails(game *GameExport, record Record, f *File, idx gameDetailIn
 	setOptionalPositiveInt(record, "WindSpeed", &game.WindSpeed)
 	game.IsSimmed = boolField(record, "IsSimmed")
 	game.IsOvertime = boolField(record, "IsOvertimeGame")
+	game.BroadcastNetwork = normalizeEnum(stringField(record, "BroadcastNetwork"))
+	game.DayOfWeek = normalizeEnum(stringField(record, "DayOfWeek"))
+	game.Precipitation = normalizeEnum(stringField(record, "Precipitation"))
+	game.CloudCover = normalizeEnum(stringField(record, "CloudCover"))
+	setOptionalPositiveInt(record, "PrecipitationChance", &game.PrecipitationChance)
+	setOptionalPositiveInt(record, "SeasonGameNum", &game.SeasonGameNum)
+	setOptionalPositiveInt(record, "GameDateMonth", &game.GameDateMonth)
+	setOptionalPositiveInt(record, "GameDateDay", &game.GameDateDay)
+	game.IsGameOfTheWeek = boolField(record, "IsGameOfTheWeek")
+	game.IsKickoffGame = boolField(record, "IsKickoffGame")
+	game.IsChallengeGame = boolField(record, "IsChallengeGame")
+	game.IsRematch = boolField(record, "IsRematch")
+	if ref, ok := record.Get("Stadium"); ok && ref.Reference != nil {
+		if stadium, ok := f.RecordByReference("Stadium", ref.Reference); ok {
+			game.StadiumName = stringField(stadium, "Name")
+		}
+	}
 
 	if ref, ok := record.Get("BowlGame"); ok && ref.Reference != nil {
 		if bowl, ok := f.RecordByReference("BowlGame", ref.Reference); ok {
@@ -141,6 +158,12 @@ func scoringPlaysForGame(f *File, game Record, scoringTableID uint32) []ScoringP
 		if v, ok := gameStatIntOK(row, "TimeStampInSec"); ok {
 			play.TimeStampSec = &v
 		}
+		if count := snapshotCount(f, row, "HomePlayerSnapshots"); count > 0 {
+			play.HomeScorerCount = &count
+		}
+		if count := snapshotCount(f, row, "AwayPlayerSnapshots"); count > 0 {
+			play.AwayScorerCount = &count
+		}
 		plays = append(plays, play)
 	}
 	return plays
@@ -191,4 +214,12 @@ func setGameStatInt(record Record, name string, dst **int) {
 	if v, ok := gameStatIntOK(record, name); ok {
 		*dst = &v
 	}
+}
+
+func snapshotCount(f *File, record Record, field string) int {
+	value, ok := record.Get(field)
+	if !ok || value.Reference == nil {
+		return 0
+	}
+	return len(f.arrayStoreMemberRefs(value.Reference))
 }

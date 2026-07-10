@@ -6,6 +6,7 @@ import (
 )
 
 func TestDumpMotivationRaw(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	if err := file.ReadAllRecords(); err != nil {
 		t.Fatal(err)

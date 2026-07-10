@@ -19,7 +19,20 @@ func intFieldOK(record Record, name string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	return int(value.Int), true
+	return tunableIntFromField(value)
+}
+
+// tunableIntFromField decodes an int field from save or tuning data. Tuning FTC
+// array elements use s_int with minValue 0x80000000; subtract that bias when present.
+func tunableIntFromField(value FieldValue) (int, bool) {
+	if value.Float != 0 {
+		return int(value.Float), true
+	}
+	v := value.Int
+	if v >= sIntBias {
+		return int(v - sIntBias), true
+	}
+	return int(v), true
 }
 
 func statIntOK(record Record, name string) (int, bool) {
@@ -166,7 +179,23 @@ func seasonStatIntOK(record Record, name string) (int, bool) {
 // careerStatIntOK filters career totals that are within plausible bounds.
 func careerStatIntOK(record Record, name string) (int, bool) {
 	v, ok := intFieldOK(record, name)
-	if !ok || v <= 0 || v > 500 {
+	if !ok || v <= 0 {
+		return 0, false
+	}
+	limit := 500
+	if name == "DOWNSPLAYED" {
+		limit = 50000
+	}
+	if v > limit {
+		return 0, false
+	}
+	return v, true
+}
+
+// careerProductionIntOK filters career production counters; totals can exceed single-season bounds.
+func careerProductionIntOK(record Record, name string) (int, bool) {
+	v, ok := intFieldOK(record, name)
+	if !ok || v <= 0 || v > 200000 {
 		return 0, false
 	}
 	return v, true

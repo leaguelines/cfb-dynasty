@@ -8,16 +8,16 @@ var playerIdentityFields = []string{
 	"JerseyNum", "TeamIndex",
 }
 
-func (f *File) buildPlayerExport(record Record, teams teamIndexMaps) *PlayerExport {
+func (f *File) buildPlayerExport(record Record, teams teamIndexMaps, careerIdx careerStatsIndex) *PlayerExport {
 	player := buildPlayerExport(record)
 	if player == nil {
 		return nil
 	}
-	applyPlayerEnrichment(f, player, record, teams)
+	applyPlayerEnrichment(f, player, record, teams, careerIdx)
 	return player
 }
 
-func applyPlayerEnrichment(f *File, player *PlayerExport, record Record, teams teamIndexMaps) {
+func applyPlayerEnrichment(f *File, player *PlayerExport, record Record, teams teamIndexMaps, careerIdx careerStatsIndex) {
 	if player == nil {
 		return
 	}
@@ -50,12 +50,13 @@ func applyPlayerEnrichment(f *File, player *PlayerExport, record Record, teams t
 	if abilities := mentalAbilitiesFromRecord(record); len(abilities) > 0 {
 		player.MentalAbilities = abilities
 	}
-	if stats := f.playerCareerStatsExport(record); stats != nil {
+	if stats := f.playerCareerStatsExport(record, careerIdx); stats != nil {
 		player.CareerStats = stats
 	}
 	if traits := archetypeTraitsFromRecord(record); len(traits) > 0 {
 		player.ArchetypeTraits = traits
 	}
+	applySkillGroupLabels(player, record, f.skillGroupIndex())
 }
 
 func playerMotivations(record Record) []string {
@@ -133,6 +134,7 @@ func buildPlayerExport(record Record) *PlayerExport {
 		player.SkillGroupCaps = caps
 		player.SkillGroupCapTotal = total
 	}
+	applyPlayerRosterFields(player, record)
 
 	ratings := make(map[string]int)
 	for key, value := range record.Fields {

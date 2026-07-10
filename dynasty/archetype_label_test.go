@@ -1,10 +1,6 @@
 package dynasty
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
+import "testing"
 
 func TestArchetypeLabelFromRecord_PTFlags(t *testing.T) {
 	tests := []struct {
@@ -102,10 +98,7 @@ func TestArchetypeLabelFromRecord_PTPreferredOverPlayerType(t *testing.T) {
 }
 
 func TestArchetypeLabelFromRecord_RealSaveQBs(t *testing.T) {
-	savePath := filepath.Join("..", "data", "DYNASTY-TESTSAVE-27")
-	if _, err := os.Stat(savePath); err != nil {
-		t.Skip("test save not available:", savePath)
-	}
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	table, ok := file.PrimaryTableByName("Player")
 	if !ok {

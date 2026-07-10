@@ -18,6 +18,10 @@ func (f *File) buildRosterExports() ([]RosterExport, error) {
 	if err != nil {
 		return nil, err
 	}
+	careerIdx, err := f.buildCareerStatsIndex()
+	if err != nil {
+		return nil, err
+	}
 
 	rosters := make(map[int][]PlayerExport)
 	for _, record := range playerTable.Records {
@@ -29,7 +33,7 @@ func (f *File) buildRosterExports() ([]RosterExport, error) {
 		if !ok {
 			continue
 		}
-		player := f.buildPlayerExport(record, teams)
+		player := f.buildPlayerExport(record, teams, careerIdx)
 		if player == nil {
 			continue
 		}

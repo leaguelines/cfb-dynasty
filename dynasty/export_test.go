@@ -1,30 +1,9 @@
 package dynasty
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
-
-func openTestSave(t *testing.T) *File {
-	t.Helper()
-	savePath := filepath.Join("..", "data", "DYNASTY-TESTSAVE-27")
-	schemaDir := filepath.Join("..", "data")
-	if _, err := os.Stat(savePath); err != nil {
-		t.Skip("test save not available:", savePath)
-	}
-
-	settings := DefaultSettings()
-	settings.SchemaDir = schemaDir
-	settings.AutoParse = true
-	file, err := Open(savePath, &settings)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return file
-}
+import "testing"
 
 func TestExportRecruitsAndStats(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.Export()
 	if err != nil {
@@ -99,6 +78,7 @@ func TestExportRecruitsAndStats(t *testing.T) {
 }
 
 func TestExportWithOptionsSections(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 
 	gamesOnly, err := file.ExportWithOptions(ExportOptions{
@@ -322,6 +302,7 @@ func TestGameIndexFromStatReference(t *testing.T) {
 }
 
 func TestRecordByReferenceTeam(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	team, ok := file.PrimaryTableByName("Team")
 	if !ok {

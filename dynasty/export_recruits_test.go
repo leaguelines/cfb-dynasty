@@ -3,6 +3,7 @@ package dynasty
 import "testing"
 
 func TestRecruitPlayerLinkage(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	recruitTable, ok := file.PrimaryTableByName("Recruit")
 	if !ok {

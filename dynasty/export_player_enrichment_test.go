@@ -35,16 +35,20 @@ func TestMentalAbilitiesFromRecord(t *testing.T) {
 }
 
 func TestPlayerCareerStatsFromRecord(t *testing.T) {
-	stats := playerCareerStatsFromRecord(Record{Fields: map[string]FieldValue{
+	stats := playerCareerStatsFromRecords(Record{Fields: map[string]FieldValue{
 		"GAMESPLAYED":  {Int: 14},
 		"GAMESSTARTED": {Int: 12},
 		"DOWNSPLAYED":  {Int: 80},
-	}})
+		"PASSYARDS":    {Int: 3200},
+	}}, Record{}, nil)
 	if stats == nil {
 		t.Fatal("expected career stats")
 	}
 	if stats.GamesPlayed == nil || *stats.GamesPlayed != 14 {
 		t.Fatalf("gamesPlayed = %v", stats.GamesPlayed)
+	}
+	if stats.Offense == nil || stats.Offense.PassYards == nil || *stats.Offense.PassYards != 3200 {
+		t.Fatalf("offense = %#v", stats.Offense)
 	}
 }
 
@@ -72,6 +76,7 @@ func TestArchetypeTraitsFromRecord(t *testing.T) {
 }
 
 func TestApplyPlayerEnrichment(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	teams := file.teamMaps()
 	record := Record{Fields: map[string]FieldValue{
@@ -88,7 +93,7 @@ func TestApplyPlayerEnrichment(t *testing.T) {
 		"WasPreviouslyInjured":   {Bool: true},
 	}}
 	player := buildPlayerExport(record)
-	applyPlayerEnrichment(file, player, record, teams)
+	applyPlayerEnrichment(file, player, record, teams, careerStatsIndex{})
 	if player.RedshirtStatus != "Eligible" {
 		t.Fatalf("redshirtStatus = %q", player.RedshirtStatus)
 	}
@@ -107,6 +112,7 @@ func TestApplyPlayerEnrichment(t *testing.T) {
 }
 
 func TestExportRosters_PlayerEnrichment(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Rosters: true}})
 	if err != nil {
@@ -140,6 +146,7 @@ func TestExportRosters_PlayerEnrichment(t *testing.T) {
 }
 
 func TestExportRecruits_PlayerEnrichment(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true}})
 	if err != nil {

@@ -13,6 +13,10 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 	exports := make([]RecruitExport, 0, recruitTable.ActiveRecordCount())
 	active := int(recruitTable.ActiveRecordCount())
 	teams := f.teamMaps()
+	careerIdx, err := f.buildCareerStatsIndex()
+	if err != nil {
+		return nil, err
+	}
 	schoolTable, _ := f.PrimaryTableByName("ProspectTargetSchool")
 	if schoolTable != nil {
 		_ = schoolTable.ReadRecords()
@@ -39,7 +43,7 @@ func (f *File) buildRecruitExports() ([]RecruitExport, error) {
 
 		if playerRef, ok := record.Get("Player"); ok && playerRef.Reference != nil {
 			if playerRecord, _, ok := f.playerRecordByReference(playerRef.Reference); ok {
-				export.Player = f.buildPlayerExport(playerRecord, teams)
+				export.Player = f.buildPlayerExport(playerRecord, teams, careerIdx)
 				applyCanonicalTeamIndex(export.Player, teams)
 				applyPlayerAth(export.Player, export.AlternatePosition1, export.AlternatePosition2)
 			}

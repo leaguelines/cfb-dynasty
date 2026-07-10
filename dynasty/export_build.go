@@ -266,6 +266,7 @@ func (f *File) buildSeasonExport() *SeasonExport {
 		Week:     intField(row, "CurrentWeek"),
 		WeekType: stringField(row, "CurrentWeekType"),
 		Phase:    stringField(row, "CurrentStage"),
+		Periods:  buildSeasonPeriodsExport(row),
 	}
 }
 

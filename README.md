@@ -21,10 +21,10 @@ go get github.com/leaguelines/cfb-dynasty/dynasty
 | Area | Coverage |
 |------|----------|
 | Season / teams | Year, week, phase; schools with conference, W–L, poll ranks |
-| Rosters | Active players with ratings, archetypes, skill-group caps |
+| Rosters | Active players with ratings, archetypes, skill-group caps and labels (when tuning data is available) |
 | Games | Schedule, scores, team box scores, attributed player lines (offense / defense / special teams) |
 | Season stats | Player and team season totals |
-| Recruiting | Board + player attributes; pursuit state, NIL, visits, top school |
+| Recruiting | Board + player attributes; pursuit state, NIL, visits, full school interest, active pitches |
 | Staff / roster mgmt | Coaches, injuries, depth charts, leaving / graduation pipeline |
 | History | Player awards, league awards, conference champions, full record book (league / conference / team × career / season / game) |
 
@@ -94,6 +94,19 @@ cfb-dynasty export -schema-dir ./schemas --teams /path/to/Dynasty1 | head
 
 If you already have a working bundle (like `C27_468_2.gz` from local RE), you can use it directly — no re-extraction needed until EA ships a patch that changes table layouts.
 
+**4. Optional: tuning FTC for skill group labels**
+
+Skill group bucket names and recruiting formula constants live in
+`dynasty-tuning-binary.FTC` from the game install. Copy it (and sibling tuning
+assets if needed) under your schema directory as:
+
+```
+schemas/cfb27-db-data/<patch>/dynasty-tuning-binary.FTC
+```
+
+The exporter auto-discovers the newest patch folder. Pass `--tuning-path` to
+override. Without this file, skill group caps still export but remain unnamed.
+
 ### Should schema bundles be committed to git?
 
 **No — do not commit them to a public repository.**
@@ -141,7 +154,7 @@ cfb-dynasty export -schema-dir ./schemas --games --no-game-stats /path/to/Dynast
 | `--rosters` | `rosters` | Active rosters with player ratings |
 | `--games` | `games` | Schedule, scores, optional per-game stats |
 | `--recruits` | `recruits` | Recruiting board + nested `player` attributes |
-| `--recruiting` | `recruiting` | Pursuit state, NIL, visits, top school interest |
+| `--recruiting` | `recruiting` | Pursuit state, NIL, visits, full school interest, active pitches |
 | `--season-stats` | `seasonPlayerStats`, `seasonTeamStats` | Season stat totals |
 | `--coaches` | `coaches` | Staff, contracts, career records |
 | `--leaving-players` | `leavingPlayers` | Graduation / exit pipeline |
@@ -163,10 +176,25 @@ weather, kicking, and offensive line stats when `--games` is selected.
 Additional flags:
 
 - `--no-game-stats` — omit team/player stat lines from game exports
+- `--tuning-path` — path to `dynasty-tuning-binary.FTC` for skill group labels (auto-discovered under `--schema-dir` when omitted)
 - `-o path` — write JSON to a file (stdout if omitted)
 - `--pretty=false` — compact JSON
 
 Run `cfb-dynasty -h` or `cfb-dynasty export -h` for full usage.
+
+### Recruiting formula constants
+
+Dump recruiting tunables from the game install's tuning FTC (no save required):
+
+```bash
+cfb-dynasty recruiting-tunables -schema-dir ./data
+cfb-dynasty recruiting-tunables -schema-dir ./data -o recruiting-tunables.json
+```
+
+Place `cfb27-db-data/<patch>/dynasty-tuning-binary.FTC` under your schema directory
+(or pass `-tuning` with an explicit path). The export includes scalar thresholds,
+lookup arrays, pitch definitions, visit/action costs, and high-school generation
+weights.
 
 ### Team IDs
 
@@ -184,7 +212,7 @@ cfb-dynasty export -schema-dir ./schemas --recruits /path/to/Dynasty1 | \
   jq '.recruits[] | select(.nationalRank != null and .player != null) |
       {rank: .nationalRank, name: "\(.player.firstName) \(.player.lastName)",
        position: .player.position, archetype: .player.archetypeLabel, overall: .player.overall,
-       skillCaps: .player.skillGroupCaps, skillCapTotal: .player.skillGroupCapTotal}'
+       skillCaps: .player.skillGroupCaps, skillGroups: .player.skillGroups, skillCapTotal: .player.skillGroupCapTotal}'
 ```
 
 ### Skill group caps
@@ -194,15 +222,15 @@ caps read straight from the save:
 
 - `skillGroupCaps` — the six positional caps (`SkillGroupCap1..6`).
 - `skillGroupCapTotal` — their sum (a strong proxy for a recruit's ceiling / star tier).
+- `skillGroups` — when tuning data is available, each cap is paired with its UI
+  bucket name (for example `Accuracy`, `IQ`, `Power`) via `skillGroupLabels`.
 
-The caps are exported as **opaque, positional values** — the array is ordered by
-`SkillGroupCap1..6` as stored in the save. The game buckets these into six
-position-specific skill groups, but the group **names** are not present in the
-dynasty save (they live in the tuning FTC, which is not yet extractable for
-CFB 27). Rather than guess at labels, the export intentionally leaves the slots
-unnamed until definitive names are available. Note also that only the per-group
-*cap* is known — the individual ratings inside each group are tuning-driven and
-not in the save.
+Caps are stored in the save; bucket **names** come from `dynasty-tuning-binary.FTC`
+in the game install. Place that file under your `--schema-dir` as
+`cfb27-db-data/<patch>/dynasty-tuning-binary.FTC`, or pass `--tuning-path` on
+export. Without tuning data, caps export as ordered unnamed values. Only the
+per-group *cap* is known — individual ratings inside each group are
+tuning-driven and not in the save.
 
 ### Per-game player stats
 
@@ -336,9 +364,8 @@ Dynasty saves are typically named like `Dynasty1`.
 ## Known limitations
 
 - **Schema required** — export and record decoding need a matching `C27_*_*.gz` bundle (not shipped here).
+- **Tuning data optional** — skill group labels and `recruiting-tunables` need `dynasty-tuning-binary.FTC` from the game install (not shipped here).
 - **Read-only** — no save writing or editing.
-- **Recruiting depth** — each prospect’s `topSchool` exports; the full multi-school interest list is not expanded yet.
-- **Skill group names** — caps export as ordered `skillGroupCaps[6]`; UI bucket names live in game tuning assets, not the save.
 - **Record-book team names** — league ranks below #1 often omit a stored team name in the save (the exporter does not invent one).
 - **Unplayed saves** — game and season player stats may be empty until games are simmed.
 - **Large exports** — full exports with `--recruits` and `--rosters` can be tens of MB; use section flags to trim output.
@@ -368,7 +395,8 @@ CFB shares the broad EA engine family with Madden, but dynasty saves are a disti
 
 ```bash
 go build ./...
-go test ./...
+go test ./dynasty -short -count=1          # unit tests only (low memory)
+go test ./dynasty -parallel 1 -count=1     # full integration suite (serial)
 go run ./cmd/cfb-dynasty export -schema-dir ./schemas --help
 ```
 

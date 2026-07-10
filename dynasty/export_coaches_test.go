@@ -22,6 +22,7 @@ func TestCoachCareerStatsFromRecord(t *testing.T) {
 }
 
 func TestCoachExportsStaffContractFields(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{
 		Sections: ExportSections{Coaches: true},

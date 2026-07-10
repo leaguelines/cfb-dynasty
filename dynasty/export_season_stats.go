@@ -1,69 +1,274 @@
 package dynasty
 
-// buildPlayerSeasonStatsExports assembles per-player season stat lines.
-func (f *File) buildPlayerSeasonStatsExports() ([]PlayerSeasonStatsExport, error) {
-	offTable, offOK := f.PrimaryTableByName("SeasonOffensiveStats")
-	defTable, defOK := f.PrimaryTableByName("SeasonDefensiveStats")
-	if !offOK && !defOK {
-		return nil, nil
+import (
+	"sort"
+	"strconv"
+)
+
+// seasonStatsIndex links season stat rows back to the players that own them.
+// Season stat rows carry no player reference — ownership lives on the Player
+// side via the SeasonStats[] array store, same pattern as game stats.
+type seasonStatsIndex struct {
+	offOwners       map[int]int   // SeasonOffensiveStats row index -> Player row index
+	defOwners       map[int]int   // SeasonDefensiveStats row index -> Player row index
+	offRowsByPlayer map[int][]int // Player row index -> SeasonOffensiveStats row indices
+	defRowsByPlayer map[int][]int // Player row index -> SeasonDefensiveStats row indices
+	offSlotByRow    map[int]int   // SeasonOffensiveStats row index -> SeasonStats[] slot
+	defSlotByRow    map[int]int   // SeasonDefensiveStats row index -> SeasonStats[] slot
+	players         map[int]Record
+	teams           teamIndexMaps
+	offTable        *Table
+	defTable        *Table
+}
+
+func (f *File) buildSeasonStatsIndex() (seasonStatsIndex, error) {
+	idx := seasonStatsIndex{
+		offOwners:       make(map[int]int),
+		defOwners:       make(map[int]int),
+		offRowsByPlayer: make(map[int][]int),
+		defRowsByPlayer: make(map[int][]int),
+		offSlotByRow:    make(map[int]int),
+		defSlotByRow:    make(map[int]int),
+		players:         make(map[int]Record),
+		teams:           f.teamMaps(),
 	}
 
-	playerTable, _ := f.PrimaryTableByName("Player")
-	if playerTable != nil {
-		_ = playerTable.ReadRecords()
+	off, offOK := f.PrimaryTableByName("SeasonOffensiveStats")
+	def, defOK := f.PrimaryTableByName("SeasonDefensiveStats")
+	if !offOK && !defOK {
+		return idx, nil
 	}
 	if offOK {
-		_ = offTable.ReadRecords()
+		if err := off.ReadRecords(); err != nil {
+			return idx, err
+		}
+		idx.offTable = off
 	}
 	if defOK {
-		_ = defTable.ReadRecords()
+		if err := def.ReadRecords(); err != nil {
+			return idx, err
+		}
+		idx.defTable = def
 	}
 
-	rowCount := 0
-	if offOK && len(offTable.Records) > rowCount {
-		rowCount = len(offTable.Records)
+	playerTable, ok := f.PrimaryTableByName("Player")
+	if !ok || playerTable == nil {
+		return idx, nil
 	}
-	if defOK && len(defTable.Records) > rowCount {
-		rowCount = len(defTable.Records)
+	if err := playerTable.ReadRecords(); err != nil {
+		return idx, err
 	}
-	if rowCount == 0 {
+	for _, player := range playerTable.Records {
+		idx.players[player.Index] = player
+	}
+
+	f.attachSeasonStatOwners(&idx)
+	return idx, nil
+}
+
+// attachSeasonStatOwners walks each Player's SeasonStats[] array store and
+// records which player owns each season offensive/defensive stat row.
+func (f *File) attachSeasonStatOwners(idx *seasonStatsIndex) {
+	if idx == nil {
+		return
+	}
+	var offID, defID uint32
+	if idx.offTable != nil {
+		offID = idx.offTable.Header.TableID
+	}
+	if idx.defTable != nil {
+		defID = idx.defTable.Header.TableID
+	}
+	if offID == 0 && defID == 0 {
+		return
+	}
+
+	playerTable, ok := f.PrimaryTableByName("Player")
+	if !ok || playerTable == nil {
+		return
+	}
+	if err := playerTable.ReadRecords(); err != nil {
+		return
+	}
+
+	for _, player := range playerTable.Records {
+		ss, ok := player.Get("SeasonStats")
+		if !ok || isNilReference(ss.Reference) {
+			continue
+		}
+		arrTable, ok := f.GetTableByID(ss.Reference.TableID)
+		if !ok || arrTable == nil {
+			continue
+		}
+		if err := arrTable.ReadRecords(); err != nil {
+			continue
+		}
+		rowIdx := int(ss.Reference.RowNumber)
+		if rowIdx < 0 || rowIdx >= len(arrTable.Records) {
+			continue
+		}
+		for slotName, value := range arrTable.Records[rowIdx].Fields {
+			if value.Reference == nil {
+				continue
+			}
+			row := int(value.Reference.RowNumber)
+			slot := seasonStatsSlotIndex(slotName)
+			switch value.Reference.TableID {
+			case offID:
+				if idx.offTable == nil || row < 0 || row >= len(idx.offTable.Records) {
+					continue
+				}
+				if _, exists := idx.offOwners[row]; !exists {
+					idx.offOwners[row] = player.Index
+				}
+				idx.offRowsByPlayer[player.Index] = appendUniqueInt(idx.offRowsByPlayer[player.Index], row)
+				if _, exists := idx.offSlotByRow[row]; !exists {
+					idx.offSlotByRow[row] = slot
+				}
+			case defID:
+				if idx.defTable == nil || row < 0 || row >= len(idx.defTable.Records) {
+					continue
+				}
+				if _, exists := idx.defOwners[row]; !exists {
+					idx.defOwners[row] = player.Index
+				}
+				idx.defRowsByPlayer[player.Index] = appendUniqueInt(idx.defRowsByPlayer[player.Index], row)
+				if _, exists := idx.defSlotByRow[row]; !exists {
+					idx.defSlotByRow[row] = slot
+				}
+			}
+		}
+	}
+}
+
+// buildPlayerSeasonStatsExports assembles per-player season stat lines.
+func (f *File) buildPlayerSeasonStatsExports() ([]PlayerSeasonStatsExport, error) {
+	idx, err := f.buildSeasonStatsIndex()
+	if err != nil {
+		return nil, err
+	}
+	if len(idx.offRowsByPlayer) == 0 && len(idx.defRowsByPlayer) == 0 {
 		return nil, nil
 	}
 
 	specialByPlayer := f.buildSeasonSpecialTeamsByPlayer()
-	teams := f.teamMaps()
 
-	exports := make([]PlayerSeasonStatsExport, 0, rowCount/4)
-	for idx := 0; idx < rowCount; idx++ {
-		var offRecord, defRecord Record
-		if offOK && idx < len(offTable.Records) {
-			offRecord = offTable.Records[idx]
-		}
-		if defOK && idx < len(defTable.Records) {
-			defRecord = defTable.Records[idx]
-		}
-
-		offense := buildSeasonOffensiveStatsExport(offRecord)
-		defense := buildSeasonDefensiveStatsExport(defRecord)
-		if offense == nil && defense == nil {
-			continue
-		}
-
-		export := PlayerSeasonStatsExport{
-			PlayerID: idx,
-			Offense:  offense,
-			Defense:  defense,
-		}
-		applySeasonPlayerMeta(&export, offRecord, defRecord)
-		if playerTable != nil && idx < len(playerTable.Records) {
-			applyPlayerIdentityToSeasonStats(&export, playerTable.Records[idx], teams)
-		}
-		if special, ok := specialByPlayer[idx]; ok {
-			export.SpecialTeams = special
-		}
-		exports = append(exports, export)
+	playersWithStats := make(map[int]struct{}, len(idx.offRowsByPlayer)+len(idx.defRowsByPlayer))
+	for playerIdx := range idx.offRowsByPlayer {
+		playersWithStats[playerIdx] = struct{}{}
 	}
+	for playerIdx := range idx.defRowsByPlayer {
+		playersWithStats[playerIdx] = struct{}{}
+	}
+	for playerIdx := range specialByPlayer {
+		playersWithStats[playerIdx] = struct{}{}
+	}
+
+	exports := make([]PlayerSeasonStatsExport, 0, len(playersWithStats))
+	for playerIdx := range playersWithStats {
+		offRows := idx.offRowsByPlayer[playerIdx]
+		defRows := idx.defRowsByPlayer[playerIdx]
+		seasonKeys := seasonStatRowKeys(offRows, defRows, idx.offSlotByRow, idx.defSlotByRow)
+		if len(seasonKeys) == 0 {
+			seasonKeys = []seasonStatKey{{slot: -1}}
+		}
+
+		for _, key := range seasonKeys {
+			var offRecord, defRecord Record
+			if key.offRow >= 0 && idx.offTable != nil && key.offRow < len(idx.offTable.Records) {
+				offRecord = idx.offTable.Records[key.offRow]
+			}
+			if key.defRow >= 0 && idx.defTable != nil && key.defRow < len(idx.defTable.Records) {
+				defRecord = idx.defTable.Records[key.defRow]
+			}
+
+			offense := buildSeasonOffensiveStatsExport(offRecord)
+			defense := buildSeasonDefensiveStatsExport(defRecord)
+			if offense == nil && defense == nil {
+				if _, ok := specialByPlayer[playerIdx]; !ok {
+					continue
+				}
+			}
+
+			export := PlayerSeasonStatsExport{
+				PlayerID: playerIdx,
+				Offense:  offense,
+				Defense:  defense,
+			}
+			if key.slot >= 0 {
+				slot := key.slot
+				export.SeasonSlot = &slot
+			}
+			applySeasonPlayerMeta(&export, offRecord, defRecord)
+			if player, ok := idx.players[playerIdx]; ok {
+				applyPlayerIdentityToSeasonStats(&export, player, idx.teams)
+			}
+			if special, ok := specialByPlayer[playerIdx]; ok && len(seasonKeys) == 1 {
+				export.SpecialTeams = special
+			}
+			exports = append(exports, export)
+		}
+	}
+
+	sort.Slice(exports, func(i, j int) bool {
+		if exports[i].PlayerID != exports[j].PlayerID {
+			return exports[i].PlayerID < exports[j].PlayerID
+		}
+		return seasonSlotValue(exports[i].SeasonSlot) < seasonSlotValue(exports[j].SeasonSlot)
+	})
 	return exports, nil
+}
+
+type seasonStatKey struct {
+	slot   int
+	offRow int
+	defRow int
+}
+
+func seasonStatRowKeys(offRows, defRows []int, offSlotByRow, defSlotByRow map[int]int) []seasonStatKey {
+	bySlot := make(map[int]seasonStatKey)
+	for _, row := range offRows {
+		slot := offSlotByRow[row]
+		key := bySlot[slot]
+		key.slot = slot
+		key.offRow = row
+		bySlot[slot] = key
+	}
+	for _, row := range defRows {
+		slot := defSlotByRow[row]
+		key := bySlot[slot]
+		key.slot = slot
+		key.defRow = row
+		bySlot[slot] = key
+	}
+	if len(bySlot) == 0 {
+		return nil
+	}
+	slots := make([]int, 0, len(bySlot))
+	for slot := range bySlot {
+		slots = append(slots, slot)
+	}
+	sort.Ints(slots)
+	out := make([]seasonStatKey, 0, len(slots))
+	for _, slot := range slots {
+		out = append(out, bySlot[slot])
+	}
+	return out
+}
+
+func seasonStatsSlotIndex(slotName string) int {
+	slot, err := strconv.Atoi(slotName)
+	if err != nil {
+		return 0
+	}
+	return slot
+}
+
+func seasonSlotValue(slot *int) int {
+	if slot == nil {
+		return -1
+	}
+	return *slot
 }
 
 // buildSeasonSpecialTeamsByPlayer walks each Player's SeasonStats[] array store
@@ -96,10 +301,7 @@ func (f *File) buildSeasonSpecialTeamsByPlayer() map[int]*SpecialTeamsStatsExpor
 	out := make(map[int]*SpecialTeamsStatsExport)
 	for _, player := range playerTable.Records {
 		ss, ok := player.Get("SeasonStats")
-		if !ok || ss.Reference == nil {
-			continue
-		}
-		if ss.Reference.TableID == 0 && ss.Reference.RowNumber == 0 {
+		if !ok || isNilReference(ss.Reference) {
 			continue
 		}
 		arrTable, ok := f.GetTableByID(ss.Reference.TableID)

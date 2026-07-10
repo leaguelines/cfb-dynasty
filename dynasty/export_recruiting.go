@@ -36,10 +36,15 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 		}
 
 		export := RecruitingTargetExport{RecruitID: record.Index}
-		export.TopSchool = topSchoolInterest(record, f, schoolTable, teams)
+		interests := recruitSchoolInterests(f, record, schoolTable, teams)
+		export.SchoolInterest = interests
+		export.TopSchool = topSchoolFromInterests(interests)
 
 		if targetTable != nil && record.Index < len(targetTable.Records) {
-			applyRecruitTargetFields(&export, targetTable.Records[record.Index], f)
+			targetRow := targetTable.Records[record.Index]
+			applyRecruitTargetFields(&export, targetRow, f)
+			export.ActivePitches = activePitchesFromTarget(f, targetRow)
+			setOptionalNonNegativeInt(targetRow, "UnlockedIntelBitfield", &export.UnlockedIntelBitfield)
 		}
 		if userTargetTable != nil && record.Index < len(userTargetTable.Records) {
 			applyUserRecruitTargetFields(&export, userTargetTable.Records[record.Index])
@@ -51,31 +56,6 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 		exports = append(exports, export)
 	}
 	return exports, nil
-}
-
-func topSchoolInterest(recruit Record, f *File, schoolTable *Table, teams teamIndexMaps) *RecruitingSchoolInterestExport {
-	interests := recruitSchoolInterests(f, recruit, schoolTable, teams)
-	return topSchoolFromInterests(interests)
-}
-
-func buildSchoolInterestExport(record Record, teams teamIndexMaps) *RecruitingSchoolInterestExport {
-	row, ok := intFieldOK(record, "TeamId")
-	if !ok {
-		return nil
-	}
-	teamID, ok := teams.playerTeamID(row)
-	if !ok {
-		return nil
-	}
-	influence, _ := intFieldOK(record, "TeamInfluence")
-	if influence < 0 {
-		influence = 0
-	}
-	return &RecruitingSchoolInterestExport{
-		TeamID:    teamID,
-		TeamName:  teams.nameFromID(teamID),
-		Influence: influence,
-	}
 }
 
 func applyRecruitTargetFields(export *RecruitingTargetExport, record Record, f *File) {
@@ -134,7 +114,16 @@ func buildRecruitingVisitExport(record Record) *RecruitingVisitExport {
 }
 
 func hasRecruitingData(export RecruitingTargetExport) bool {
+	if len(export.SchoolInterest) > 0 {
+		return true
+	}
 	if export.TopSchool != nil {
+		return true
+	}
+	if len(export.ActivePitches) > 0 {
+		return true
+	}
+	if export.UnlockedIntelBitfield != nil {
 		return true
 	}
 	if export.ScholarshipStatus != "" && export.ScholarshipStatus != "None" {
@@ -158,6 +147,29 @@ func hasRecruitingData(export RecruitingTargetExport) bool {
 		export.ProspectInfluenceTotal != nil || export.ProspectInfluenceDelta != nil ||
 		export.ProspectInfluenceTotalLastWeek != nil || export.ProspectHoursSpentCurrent != nil ||
 		export.CommittedWeekNumber != nil
+}
+
+func activePitchesFromTarget(f *File, record Record) []RecruitingPitchExport {
+	ref, ok := record.Get("ActivePitches")
+	if !ok || ref.Reference == nil {
+		return nil
+	}
+	var pitches []RecruitingPitchExport
+	for _, memberRef := range f.arrayStoreMemberRefs(ref.Reference) {
+		row, ok := f.RecordByReference("ActiveRecruitingPitch", memberRef)
+		if !ok {
+			continue
+		}
+		pitch := RecruitingPitchExport{
+			Pitch:     normalizeEnum(stringField(row, "Pitch")),
+			Intensity: normalizeEnum(stringField(row, "Intensity")),
+		}
+		if pitch.Pitch == "" && pitch.Intensity == "" {
+			continue
+		}
+		pitches = append(pitches, pitch)
+	}
+	return pitches
 }
 
 func boolField(record Record, name string) bool {

@@ -71,6 +71,26 @@ func recruitSchoolInterests(f *File, recruit Record, schoolTable *Table, teams t
 	return exports
 }
 
+func buildSchoolInterestExport(record Record, teams teamIndexMaps) *RecruitingSchoolInterestExport {
+	row, ok := intFieldOK(record, "TeamId")
+	if !ok {
+		return nil
+	}
+	teamID, ok := teams.playerTeamID(row)
+	if !ok {
+		return nil
+	}
+	influence, _ := intFieldOK(record, "TeamInfluence")
+	if influence < 0 {
+		influence = 0
+	}
+	return &RecruitingSchoolInterestExport{
+		TeamID:    teamID,
+		TeamName:  teams.nameFromID(teamID),
+		Influence: influence,
+	}
+}
+
 func topSchoolFromInterests(interests []RecruitingSchoolInterestExport) *RecruitingSchoolInterestExport {
 	if len(interests) == 0 {
 		return nil

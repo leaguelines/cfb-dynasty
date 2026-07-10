@@ -253,17 +253,29 @@ func buildOffensiveGameStatsExport(record Record) *OffensiveGameStatsExport {
 		}
 	}
 	set(&stats.GameRating, "GAMERATING")
+	set(&stats.GamesStarted, "GAMESSTARTED")
+	set(&stats.DownsPlayed, "DOWNSPLAYED")
 	set(&stats.PassYards, "PASSYARDS")
 	set(&stats.PassTDs, "PASSTDS")
 	set(&stats.PassAttempts, "PASSATTEMPTS")
 	set(&stats.PassCompletions, "PASSCOMPLETED")
 	set(&stats.PassInts, "PASSINTS")
+	set(&stats.PassLongest, "PASSLONGEST")
+	set(&stats.PassSacked, "PASSSACKED")
 	set(&stats.RushYards, "RUSHYARDS")
 	set(&stats.RushTDs, "RUSHTDS")
 	set(&stats.RushAttempts, "RUSHATTEMPTS")
+	set(&stats.RushLongest, "RUSHLONGEST")
+	set(&stats.RushBrokenTackles, "RUSHBROKENTACKLES")
+	set(&stats.RushFumbles, "RUSHFUMBLES")
+	set(&stats.Rush20YardRuns, "RUSH20YARDRUNS")
+	set(&stats.RushYardsAfterFirstHit, "RUSHYARDSAFTER1STHIT")
 	set(&stats.RecYards, "RECEIVEYARDS")
 	set(&stats.RecTDs, "RECEIVETDS")
 	set(&stats.Receptions, "RECEIVECATCHES")
+	set(&stats.RecLongest, "RECEIVELONGEST")
+	set(&stats.RecDrops, "RECEIVEDROPS")
+	set(&stats.RecYardsAfterCatch, "RECEIVEYARDSAFTER")
 	return stats
 }
 
@@ -278,13 +290,25 @@ func buildDefensiveGameStatsExport(record Record) *DefensiveGameStatsExport {
 		}
 	}
 	set(&stats.GameRating, "GAMERATING")
+	set(&stats.GamesStarted, "GAMESSTARTED")
+	set(&stats.DownsPlayed, "DOWNSPLAYED")
 	set(&stats.Tackles, "DEFTACKLES")
 	set(&stats.AssistTackles, "ASSDEFTACKLES")
 	set(&stats.Sacks, "DLINESACKS")
+	set(&stats.TacklesForLoss, "DEFTACKLESFORLOSS")
 	set(&stats.Ints, "DSECINTS")
+	set(&stats.IntReturnYards, "DSECINTRETURNYARDS")
+	set(&stats.IntReturnLongest, "DSECINTLONGESTRETURN")
+	set(&stats.IntTDs, "DSECINTTDS")
 	set(&stats.ForcedFumbles, "DLINEFORCEDFUMBLES")
 	set(&stats.FumbleRecover, "DLINEFUMBLERECOVERIES")
+	set(&stats.FumbleRecoverYards, "DLINEFUMBLERECOVERYYARDS")
+	set(&stats.FumbleTDs, "DLINEFUMBLETDS")
 	set(&stats.PassDeflections, "DEFPASSDEFLECTIONS")
+	set(&stats.BigHits, "BIGHITS")
+	set(&stats.CatchesAllowed, "CTHALLOWED")
+	set(&stats.Safeties, "DLINESAFETIES")
+	set(&stats.Blocks, "DLINEBLOCKS")
 	return stats
 }
 

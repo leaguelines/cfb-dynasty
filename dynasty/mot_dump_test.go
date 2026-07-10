@@ -6,6 +6,7 @@ import (
 )
 
 func TestDumpMotivations(t *testing.T) {
+	skipIfShortIntegration(t)
 	file := openTestSave(t)
 	export, err := file.ExportWithOptions(ExportOptions{Sections: ExportSections{Recruits: true, Rosters: true}})
 	if err != nil {

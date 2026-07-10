@@ -8,12 +8,8 @@ const skillGroupCapCount = 6
 // skillGroupCapsFromRecord reads SkillGroupCap1..6 from a Player row. It returns
 // the positional caps, their total, and whether any caps were present.
 //
-// The caps are exported as opaque, positional values. The game groups these into
-// six position-specific skill groups, but the group *names* are not stored in the
-// dynasty save (they live in the tuning FTC, which is not yet extractable for
-// CFB 27), so we deliberately do not label the slots until definitive names are
-// available. Likewise, only the per-group cap is present here — the individual
-// ratings inside each group are tuning-driven and not in the save.
+// Bucket names come from the tuning FTC (PlayerSkillGroup / PlayerSkillGroupBucket)
+// and are attached separately via applySkillGroupLabels when tuning data is available.
 func skillGroupCapsFromRecord(record Record) (caps []int, total int, ok bool) {
 	caps = make([]int, skillGroupCapCount)
 	for i := 0; i < skillGroupCapCount; i++ {
