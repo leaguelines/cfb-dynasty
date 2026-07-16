@@ -281,9 +281,9 @@ func runSchemaBuild(args []string) int {
 	fs := flag.NewFlagSet("schema-build", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	outDir := fs.String("o", "", "output directory for C{year}_{major}_{minor}.gz (default: current directory)")
-	major := fs.Int("major", -1, "schema major override (default: dataMajorVersion from FTX, else 468 for CFB 27)")
-	minor := fs.Int("minor", -1, "schema minor override (default: dataRevisionVersion from FTX headers)")
-	year := fs.Int("year", -1, "game year override (default: from path cfbNN, else 27)")
+	major := fs.Int("major", -1, "schema major override (default: franchise-schemas dataMajorVersion, else 468 for CFB 27)")
+	minor := fs.Int("minor", -1, "schema minor override (default: franchise-schemas dataMinorVersion, else dataRevisionVersion)")
+	year := fs.Int("year", -1, "game year override (default: from franchise databaseName / path cfbNN, else 27)")
 	noExtras := fs.Bool("no-extras", false, "omit madden-franchise core extra schemas")
 	if err := fs.Parse(args); err != nil {
 		return 2

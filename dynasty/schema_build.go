@@ -58,12 +58,14 @@ type SchemaBuildResult struct {
 }
 
 type ftxRoot struct {
-	XMLName              xml.Name   `xml:"FranTkData"`
-	DatabaseName         string     `xml:"databaseName,attr"`
-	DataMajorVersion     string     `xml:"dataMajorVersion,attr"`
-	DataMinorVersion     string     `xml:"dataMinorVersion,attr"`
-	DataRevisionVersion  string     `xml:"dataRevisionVersion,attr"`
-	Schemas              ftxSchemas `xml:"schemas"`
+	XMLName             xml.Name   `xml:"FranTkData"`
+	FileName            string     `xml:"fileName,attr"`
+	Namespace           string     `xml:"namespace,attr"`
+	DatabaseName        string     `xml:"databaseName,attr"`
+	DataMajorVersion    string     `xml:"dataMajorVersion,attr"`
+	DataMinorVersion    string     `xml:"dataMinorVersion,attr"`
+	DataRevisionVersion string     `xml:"dataRevisionVersion,attr"`
+	Schemas             ftxSchemas `xml:"schemas"`
 }
 
 type ftxSchemas struct {
@@ -150,11 +152,10 @@ func BuildSchemaBundle(opts SchemaBuildOptions) (*SchemaBuildResult, error) {
 		return nil, err
 	}
 
-	meta, minorSource, err := detectSchemaMeta(source)
+	meta, majorSource, minorSource, err := detectSchemaMeta(source)
 	if err != nil {
 		return nil, err
 	}
-	majorSource := "ftx-dataMajorVersion"
 	if opts.Major != nil {
 		meta.Major = *opts.Major
 		majorSource = "flag"
@@ -296,22 +297,14 @@ func hasFTXTree(dir string) bool {
 	return found
 }
 
-func detectSchemaMeta(dir string) (detectedMeta, string, error) {
-	var meta detectedMeta
+func detectSchemaMeta(dir string) (meta detectedMeta, majorSource, minorSource string, err error) {
 	meta.Minor = -1
-	minorSource := ""
 
-	rev, revCount, err := detectRevision(dir)
-	if err != nil {
-		return meta, "", err
-	}
-	if revCount > 0 {
-		meta.Minor = rev
-		minorSource = "dataRevisionVersion"
-	}
-
-	// Monolithic FTX may carry dataMajorVersion / dataMinorVersion / databaseName.
-	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	// Prefer FranTk.College / franchise-schemas.FTX root meta (not Core or Football).
+	bestScore := -1 << 30
+	var best *ftxRoot
+	var bestPath string
+	walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.EqualFold(filepath.Ext(d.Name()), ".ftx") {
 			return nil
 		}
@@ -319,27 +312,56 @@ func detectSchemaMeta(dir string) (detectedMeta, string, error) {
 		if perr != nil || root == nil {
 			return nil
 		}
-		if meta.Major == 0 && root.DataMajorVersion != "" {
-			if n, e := strconv.Atoi(root.DataMajorVersion); e == nil {
-				meta.Major = n
-			}
+		if root.DataMajorVersion == "" && root.DataMinorVersion == "" && root.DatabaseName == "" {
+			return nil
 		}
-		if root.DataMinorVersion != "" && minorSource != "dataRevisionVersion" {
-			if n, e := strconv.Atoi(root.DataMinorVersion); e == nil {
-				meta.Minor = n
-				minorSource = "dataMinorVersion"
-			}
-		}
-		if meta.GameYear == 0 && root.DatabaseName != "" {
-			meta.GameYear = gameYearFromDatabaseName(root.DatabaseName)
-		}
-		// Stop early once we have major from FTX attrs.
-		if meta.Major > 0 && meta.GameYear > 0 {
-			return filepath.SkipAll
+		score := scoreFTXVersionSource(path, root)
+		if score > bestScore {
+			bestScore = score
+			best = root
+			bestPath = path
 		}
 		return nil
 	})
+	if walkErr != nil {
+		return meta, "", "", walkErr
+	}
 
+	if best != nil && bestScore > 0 {
+		if best.DataMajorVersion != "" {
+			if n, e := strconv.Atoi(best.DataMajorVersion); e == nil {
+				meta.Major = n
+				majorSource = "franchise-dataMajorVersion"
+				if !isCollegeFranchiseRoot(bestPath, best) {
+					majorSource = "ftx-dataMajorVersion"
+				}
+			}
+		}
+		if best.DataMinorVersion != "" {
+			if n, e := strconv.Atoi(best.DataMinorVersion); e == nil {
+				meta.Minor = n
+				minorSource = "franchise-dataMinorVersion"
+				if !isCollegeFranchiseRoot(bestPath, best) {
+					minorSource = "ftx-dataMinorVersion"
+				}
+			}
+		}
+		if best.DatabaseName != "" {
+			meta.GameYear = gameYearFromDatabaseName(best.DatabaseName)
+		}
+	}
+
+	// Older split extracts omit root major/minor — fall back to revision / directory.
+	if meta.Minor < 0 {
+		rev, revCount, rerr := detectRevision(dir)
+		if rerr != nil {
+			return meta, "", "", rerr
+		}
+		if revCount > 0 {
+			meta.Minor = rev
+			minorSource = "dataRevisionVersion"
+		}
+	}
 	if meta.Minor < 0 {
 		base := filepath.Base(dir)
 		if numericDir.MatchString(base) {
@@ -351,7 +373,57 @@ func detectSchemaMeta(dir string) (detectedMeta, string, error) {
 	if meta.GameYear == 0 {
 		meta.GameYear = detectGameYear(dir)
 	}
-	return meta, minorSource, nil
+	return meta, majorSource, minorSource, nil
+}
+
+// scoreFTXVersionSource ranks FranTkData roots for bundle meta. College/franchise
+// roots win over Football and Core (which ship their own major/minor).
+func scoreFTXVersionSource(path string, root *ftxRoot) int {
+	base := strings.ToLower(filepath.Base(path))
+	ns := strings.ToLower(root.Namespace)
+	fileName := strings.ToLower(root.FileName)
+	score := 0
+
+	switch {
+	case base == "franchise-schemas.ftx":
+		score += 200
+	case ns == "frantk.college":
+		score += 150
+	case fileName == "franchise-schemas" || strings.HasPrefix(fileName, "franchise-schemas"):
+		// Root aggregator only — nested paths look like Franchise-Schemas\Player.ftx.
+		if !strings.Contains(fileName, `\`) && !strings.Contains(fileName, "/") {
+			score += 120
+		}
+	}
+
+	switch {
+	case base == "core-schemas.ftx", ns == "frantk.core", fileName == "core-schemas":
+		score -= 200
+	case base == "football-schemas.ftx", ns == "frantk.football", fileName == "football-schemas":
+		score -= 100
+	}
+
+	if root.DataMajorVersion != "" {
+		score += 10
+	}
+	if root.DatabaseName != "" {
+		score += 5
+	}
+	return score
+}
+
+func isCollegeFranchiseRoot(path string, root *ftxRoot) bool {
+	base := strings.ToLower(filepath.Base(path))
+	ns := strings.ToLower(root.Namespace)
+	fileName := strings.ToLower(root.FileName)
+	if base == "franchise-schemas.ftx" || ns == "frantk.college" {
+		return true
+	}
+	if (fileName == "franchise-schemas" || strings.HasPrefix(fileName, "franchise-schemas")) &&
+		!strings.Contains(fileName, `\`) && !strings.Contains(fileName, "/") {
+		return true
+	}
+	return false
 }
 
 func detectRevision(dir string) (revision, count int, err error) {

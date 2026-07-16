@@ -110,11 +110,60 @@ func TestResolveSchemaSourcePicksNewestRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Base(got) != "2" && filepath.Base(got) != "0" {
-		// 0 and 2 are identical rev=2; picker prefers higher dir num when rev ties → 2
-		t.Fatalf("picked %q, want patch 2 (or 0)", got)
+	// Prefer highest dataRevisionVersion (patch 3 when present).
+	want := "2"
+	if _, err := os.Stat(filepath.Join(src, "3")); err == nil {
+		want = "3"
 	}
-	if filepath.Base(got) != "2" {
-		t.Fatalf("picked %q, want 2 when revisions tie", got)
+	if filepath.Base(got) != want {
+		t.Fatalf("picked %q, want %s", got, want)
 	}
 }
+
+func TestDetectSchemaMetaPrefersFranchiseRoot(t *testing.T) {
+	src := filepath.Join("..", "data", "cfb27-db-data", "3")
+	if _, err := os.Stat(filepath.Join(src, "franchise-schemas.FTX")); err != nil {
+		t.Skip("patch 3 franchise-schemas.FTX not present")
+	}
+	meta, majorSrc, minorSrc, err := detectSchemaMeta(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Major != 472 {
+		t.Fatalf("major = %d, want 472 from franchise-schemas (not Core 55)", meta.Major)
+	}
+	if meta.Minor != 0 {
+		t.Fatalf("minor = %d, want 0 from franchise-schemas dataMinorVersion", meta.Minor)
+	}
+	if meta.GameYear != 27 {
+		t.Fatalf("gameYear = %d, want 27", meta.GameYear)
+	}
+	if majorSrc != "franchise-dataMajorVersion" {
+		t.Fatalf("majorSource = %q", majorSrc)
+	}
+	if minorSrc != "franchise-dataMinorVersion" {
+		t.Fatalf("minorSource = %q", minorSrc)
+	}
+}
+
+func TestBuildSchemaBundlePatch3UsesFranchiseVersions(t *testing.T) {
+	src := filepath.Join("..", "data", "cfb27-db-data", "3")
+	if _, err := os.Stat(filepath.Join(src, "franchise-schemas.FTX")); err != nil {
+		t.Skip("patch 3 franchise-schemas.FTX not present")
+	}
+	out := t.TempDir()
+	result, err := BuildSchemaBundle(SchemaBuildOptions{Source: src, OutDir: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Major != 472 || result.Minor != 0 || result.GameYear != 27 {
+		t.Fatalf("meta = %d.%d year=%d, want 472.0 year=27", result.Major, result.Minor, result.GameYear)
+	}
+	if filepath.Base(result.Path) != "C27_472_0.gz" {
+		t.Fatalf("output = %s, want C27_472_0.gz", result.Path)
+	}
+	if _, err := LoadSchemaFile(result.Path); err != nil {
+		t.Fatal(err)
+	}
+}
+

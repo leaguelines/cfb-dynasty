@@ -98,9 +98,10 @@ That writes `C{year}_{major}_{minor}.gz` (for example `C27_468_2.gz`) by evaluat
 
 | Field | How `schema-build` chooses it |
 |-------|-------------------------------|
-| **Minor** | Majority `dataRevisionVersion` on `<FranTkData>` headers in the `.FTX` files (most reliable). Falls back to a numeric patch directory name, then `-minor`. |
-| **Major** | `dataMajorVersion` when present on a monolithic FTX. Split CFB extracts usually omit it — for game year 27 the tool defaults to **468** (`C27_468_*`). Pass `-major` after a title update if decoding looks wrong. |
-| **Game year** | `cfbNN` in the source path, else `-year`, else `27`. |
+| **Major / minor** | From the **College/franchise** root FTX when present (`franchise-schemas.FTX`, namespace `FranTk.College`) — its `dataMajorVersion` / `dataMinorVersion`. Ignores Core (`55.x`) and Football roots, which ship their own majors. |
+| **Major (fallback)** | Split extracts without root meta: for game year 27 defaults to **468**. Pass `-major` to override. |
+| **Minor (fallback)** | Majority `dataRevisionVersion` on per-table `.FTX` headers, then a numeric patch directory name, then `-minor`. |
+| **Game year** | `databaseName` on the franchise root (e.g. `CollegeFB27_…`), else `cfbNN` in the source path, else `-year`, else `27`. |
 
 The save header still uses a **different** numbering scheme (for example `809.1`); that is unrelated to the bundle `meta` major/minor.
 
