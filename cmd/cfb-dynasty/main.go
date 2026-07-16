@@ -16,11 +16,13 @@ Usage:
   cfb-dynasty inspect [flags] <save-file>
   cfb-dynasty export  [flags] <save-file>
   cfb-dynasty recruiting-tunables [flags]
+  cfb-dynasty schema-build [flags] <ftx-dir>
 
 Commands:
   inspect   Show container metadata without full parsing
   export    Export parsed dynasty data as JSON
   recruiting-tunables  Dump recruiting formula constants from game tuning data
+  schema-build  Build a C27_*.gz schema bundle from Frosty FTX extracts
 
 Export flags (default: all sections):
   --games          Include schedule/scores
@@ -66,6 +68,8 @@ func main() {
 		os.Exit(runExport(os.Args[2:]))
 	case "recruiting-tunables":
 		os.Exit(runRecruitingTunables(os.Args[2:]))
+	case "schema-build":
+		os.Exit(runSchemaBuild(os.Args[2:]))
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		os.Exit(0)
@@ -270,6 +274,49 @@ func runRecruitingTunables(args []string) int {
 		fmt.Fprintf(os.Stderr, "recruiting-tunables: write: %v\n", err)
 		return 1
 	}
+	return 0
+}
+
+func runSchemaBuild(args []string) int {
+	fs := flag.NewFlagSet("schema-build", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	outDir := fs.String("o", "", "output directory for C{year}_{major}_{minor}.gz (default: current directory)")
+	major := fs.Int("major", -1, "schema major override (default: dataMajorVersion from FTX, else 468 for CFB 27)")
+	minor := fs.Int("minor", -1, "schema minor override (default: dataRevisionVersion from FTX headers)")
+	year := fs.Int("year", -1, "game year override (default: from path cfbNN, else 27)")
+	noExtras := fs.Bool("no-extras", false, "omit madden-franchise core extra schemas")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	source := fs.Arg(0)
+	if source == "" {
+		fmt.Fprintln(os.Stderr, "schema-build: path to cfb27-db-data or a patch folder required")
+		fmt.Fprintln(os.Stderr, "example: cfb-dynasty schema-build -o ./data ./data/cfb27-db-data/2")
+		return 2
+	}
+
+	opts := dynasty.SchemaBuildOptions{Source: source, OutDir: *outDir}
+	if *major >= 0 {
+		opts.Major = major
+	}
+	if *minor >= 0 {
+		opts.Minor = minor
+	}
+	if *year >= 0 {
+		opts.GameYear = year
+	}
+	includeExtras := !*noExtras
+	opts.IncludeExtras = &includeExtras
+
+	result, err := dynasty.BuildSchemaBundle(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "schema-build: %v\n", err)
+		return 1
+	}
+	fmt.Printf("wrote %s\n", result.Path)
+	fmt.Printf("meta:   major=%d (%s) minor=%d (%s) gameYear=%d\n",
+		result.Major, result.MajorSource, result.Minor, result.MinorSource, result.GameYear)
+	fmt.Printf("tables: %d  enums: %d\n", result.Tables, result.Enums)
 	return 0
 }
 

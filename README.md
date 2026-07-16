@@ -68,37 +68,57 @@ The save header version and the bundle `meta` version use **different numbering*
 
 You need a **legal copy of the game** on PC. Schema data lives inside the install assets; it is not shipped with this repository.
 
-**1. Extract raw schema assets (Frosty)**
+**1. Extract FranTk schema assets (MMC Frosty)**
 
-The Madden modding workflow applies to CFB as well:
+1. Install [MMC Frosty Modding Tools](https://github.com/bphit4/MMC-Frosty-Modding-Tools/releases) and point it at your College Football 27 install.
+2. Open **Legacy Explorer** and export the dynasty schema tree (the layout this tool expects looks like `cfb27-db-data/<patch>/` with `core/`, `football/`, and `franchise/` full of `.FTX` files, plus optional `.FTC` / `.FTB` siblings).
+3. Keep the numbered patch folders intact (`0`, `1`, `2`, …). Folder `0` and `2` can be identical; content revision is what matters (see below).
 
-1. Install [Frosty Editor](https://frostytoolsuite.com/) and point it at your College Football 27 install.
-2. Open **Legacy Explorer** and search for franchise / FranTk schema assets (Madden uses `franchise-schemas.ftx` under `common → franchise`; CFB paths are still being mapped — see internal RE notes).
-3. Export the schema `.ftx` / `.xml` files to a folder on disk.
+**2. Build the gzip bundle with this tool**
 
-**2. Convert to gzip JSON**
+```bash
+# Point at the parent extract — picks the newest dataRevisionVersion patch
+cfb-dynasty schema-build -o ./schemas ./data/cfb27-db-data
 
-The CLI expects the **evaluated** `.gz` bundle, not raw `.ftx`. The usual path is the madden-franchise schema generator (same engine family):
+# Or build a specific patch folder
+cfb-dynasty schema-build -o ./schemas ./data/cfb27-db-data/2
+```
 
-- Use [`madden-franchise`](https://github.com/bep713/madden-franchise) `FranchiseSchema` / `schemaGenerator` to load the extracted `.ftx` and emit a `.gz` JSON bundle, **or**
-- Use tooling from the [Madden Franchise Editor](https://github.com/bep713/madden-franchise-editor) ecosystem (`schemaSearchService` can pull schemas from CAS/LZ4 game assets).
+That writes `C{year}_{major}_{minor}.gz` (for example `C27_468_2.gz`) by evaluating every `.FTX` in the tree (plus a small set of FranTk core extras, same idea as [madden-franchise](https://github.com/bep713/madden-franchise)).
 
-**3. Name and verify**
+| Flag | Purpose |
+|------|---------|
+| `-o` | Output directory for the `.gz` (default: current directory) |
+| `-major` | Override schema major (see version notes) |
+| `-minor` | Override schema minor |
+| `-year` | Override game year (default: from `cfbNN` in the path, else `27`) |
+| `-no-extras` | Skip embedded FranTk core extra tables |
 
-Rename the output to match your game year and bundle `meta` (for example `C27_468_2.gz`), then confirm decoding works:
+**Version metadata**
+
+| Field | How `schema-build` chooses it |
+|-------|-------------------------------|
+| **Minor** | Majority `dataRevisionVersion` on `<FranTkData>` headers in the `.FTX` files (most reliable). Falls back to a numeric patch directory name, then `-minor`. |
+| **Major** | `dataMajorVersion` when present on a monolithic FTX. Split CFB extracts usually omit it — for game year 27 the tool defaults to **468** (`C27_468_*`). Pass `-major` after a title update if decoding looks wrong. |
+| **Game year** | `cfbNN` in the source path, else `-year`, else `27`. |
+
+The save header still uses a **different** numbering scheme (for example `809.1`); that is unrelated to the bundle `meta` major/minor.
+
+**3. Verify**
 
 ```bash
 cfb-dynasty inspect -schema-dir ./schemas /path/to/Dynasty1
 cfb-dynasty export -schema-dir ./schemas --teams /path/to/Dynasty1 | head
 ```
 
-If you already have a working bundle (like `C27_468_2.gz` from local RE), you can use it directly — no re-extraction needed until EA ships a patch that changes table layouts.
+Rebuild after EA patches that change table layouts. If you already have a working `C27_*.gz`, you can keep using it without re-extracting.
+
+**Alternatives:** [`madden-franchise`](https://github.com/bep713/madden-franchise) `schemaGenerator` / Franchise Editor schema search can also produce compatible `.gz` files.
 
 **4. Optional: tuning FTC for skill group labels**
 
 Skill group bucket names and recruiting formula constants live in
-`dynasty-tuning-binary.FTC` from the game install. Copy it (and sibling tuning
-assets if needed) under your schema directory as:
+`dynasty-tuning-binary.FTC` from the same MMC Frosty extract. Keep it under your schema directory as:
 
 ```
 schemas/cfb27-db-data/<patch>/dynasty-tuning-binary.FTC
@@ -132,6 +152,15 @@ cfb-dynasty inspect -json /path/to/Dynasty1
 ```
 
 Shows compression, format, size, SHA-256, and table marker counts without full parsing.
+
+### Build a schema bundle from FTX extracts
+
+```bash
+cfb-dynasty schema-build -o ./schemas ./data/cfb27-db-data
+cfb-dynasty schema-build -o ./schemas -major 468 ./data/cfb27-db-data/2
+```
+
+See [How to obtain a bundle](#how-to-obtain-a-bundle) for MMC Frosty extraction layout and version detection.
 
 ### Export to JSON
 
@@ -369,7 +398,7 @@ Dynasty saves are typically named like `Dynasty1`.
 
 ## Known limitations
 
-- **Schema required** — export and record decoding need a matching `C27_*_*.gz` bundle (not shipped here).
+- **Schema required** — export and record decoding need a matching `C27_*_*.gz` bundle (not shipped here; build one with `schema-build` from an MMC Frosty extract).
 - **Tuning data optional** — skill group labels and `recruiting-tunables` need `dynasty-tuning-binary.FTC` from the game install (not shipped here).
 - **Read-only** — no save writing or editing.
 - **Record-book team names** — league ranks below #1 often omit a stored team name in the save (the exporter does not invent one).
