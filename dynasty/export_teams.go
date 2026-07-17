@@ -55,6 +55,9 @@ func (f *File) buildTeamExports() ([]TeamExport, error) {
 		export.CFPPollRank = sensibleRank(record, "CFPPoll_CurrentRank")
 		export.OffensiveRank = sensibleRank(record, "OffensiveRank")
 		export.DefensiveRank = sensibleRank(record, "DefensiveRank")
+		setOptionalPositiveInt(record, "TEAM_RATINGOFF", &export.OffensiveRating)
+		setOptionalPositiveInt(record, "TEAM_RATINGDEF", &export.DefensiveRating)
+		setOptionalPositiveInt(record, "TEAM_RATINGOVR", &export.OverallRating)
 		export.PrestigeRank = sensibleRank(record, "PrestigeRank")
 		setOptionalPositiveInt(record, "TeamPrestige", &export.TeamPrestige)
 

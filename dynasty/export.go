@@ -97,6 +97,9 @@ type TeamExport struct {
 	CFPPollRank      *int   `json:"cfpPollRank,omitempty"`
 	OffensiveRank    *int   `json:"offensiveRank,omitempty"`
 	DefensiveRank    *int   `json:"defensiveRank,omitempty"`
+	OffensiveRating  *int   `json:"offensiveRating,omitempty"` // TEAM_RATINGOFF (UI OFF)
+	DefensiveRating  *int   `json:"defensiveRating,omitempty"` // TEAM_RATINGDEF (UI DEF)
+	OverallRating    *int   `json:"overallRating,omitempty"`   // TEAM_RATINGOVR (UI OVR)
 	PrestigeRank     *int   `json:"prestigeRank,omitempty"`
 	TeamPrestige     *int   `json:"teamPrestige,omitempty"` // half-star units: 10 = 5★, 9 = 4.5★, …
 	OffensiveScheme  string `json:"offensiveScheme,omitempty"`

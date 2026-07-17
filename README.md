@@ -20,7 +20,7 @@ go get github.com/leaguelines/cfb-dynasty/dynasty
 
 | Area | Coverage |
 |------|----------|
-| Season / teams | Year, week, phase; schools with conference, W–L, poll ranks, recruiting class ranks/score |
+| Season / teams | Year, week, phase; schools with conference, W–L, OFF/DEF/OVR ratings, poll ranks, recruiting class ranks/score |
 | Rosters | Active players with ratings, archetypes, skill-group caps and labels (when tuning data is available) |
 | Games | Schedule, scores, team box scores, attributed player lines (offense / defense / special teams) |
 | Season stats | Player and team season totals |
