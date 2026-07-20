@@ -16,6 +16,39 @@ Or add the library to your project:
 go get github.com/leaguelines/cfb-dynasty/dynasty
 ```
 
+## Desktop GUI
+
+A cross-platform desktop explorer (`cfb-dynasty-gui`) browses dynasty saves with the same collections as the web app and exports **JSON** or **CSV** (including a full CSV zip). It uses [Wails](https://wails.io) (Go + HTML/CSS bindings) — no local web server.
+
+Schema bundles are **not** shipped in releases. On first launch, choose the folder that contains your `C27_*.gz` schema, then open a save. The app remembers the schema path. On Windows, saves under `Documents\EA SPORTS CFB27\saves` are listed automatically.
+
+```bash
+# Dev / local run (Wails requires the production or dev build tag)
+go run -tags production ./cmd/cfb-dynasty-gui --schema-dir ./data/schemas
+
+# Install GUI binary
+go build -tags production -o cfb-dynasty-gui ./cmd/cfb-dynasty-gui
+
+# Optional: launch via the CLI helper once the GUI binary is on PATH
+cfb-dynasty gui --schema-dir ./data/schemas
+
+# Cross-platform release packages (install the Wails CLI first)
+cd cmd/cfb-dynasty-gui && wails build
+```
+
+Requires platform WebView dependencies (WebView2 on Windows; WebKitGTK on Linux; macOS includes WebKit). See the [Wails docs](https://wails.io/docs/gettingstarted/installation).
+
+### Releases
+
+GitHub Actions publishes builds automatically:
+
+| Trigger | Release |
+|---------|---------|
+| Push to `main` | Updates the **nightly** prerelease (overwritten each time) |
+| Tag `v*` (e.g. `v0.3.0`) | Creates a versioned release |
+
+Each release includes GUI packages for Linux, Windows, and macOS plus matching CLI binaries. Schema bundles are never attached.
+
 ## What exports today
 
 | Area | Coverage |
@@ -384,18 +417,20 @@ if ok {
 | Package | Purpose |
 |---------|---------|
 | [`dynasty`](./dynasty/) | Public API — open saves, parse tables, export data |
+| [`internal/desktop`](./internal/desktop/) | Desktop GUI app, CSV exporter port, save discovery |
 | [`internal/binary`](./internal/binary/) | Low-level byte scanning helpers |
 | [`internal/bitview`](./internal/bitview/) | Bitfield read helpers for record decoding |
 | [`internal/compress`](./internal/compress/) | Decompression (zlib) |
 | [`cmd/cfb-dynasty`](./cmd/cfb-dynasty/) | Command-line tool |
+| [`cmd/cfb-dynasty-gui`](./cmd/cfb-dynasty-gui/) | Cross-platform desktop explorer (Wails) |
 
 ## Expected save location (PC)
 
 ```
-%USERPROFILE%\Documents\College Football 27\Saves\
+%USERPROFILE%\Documents\EA SPORTS CFB27\saves\
 ```
 
-Dynasty saves are typically named like `Dynasty1`.
+Dynasty saves are typically extensionless (or `.sav`). The desktop GUI auto-lists files in this folder on Windows.
 
 ## Known limitations
 

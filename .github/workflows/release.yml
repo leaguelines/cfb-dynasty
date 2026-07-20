@@ -1,0 +1,243 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.25.x"
+  WAILS_VERSION: v2.13.0
+
+jobs:
+  build:
+    name: Build (${{ matrix.os_name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: linux
+            platform: linux/amd64
+            gui_artifact: cfb-dynasty-gui-linux-amd64.tar.gz
+            cli_artifact: cfb-dynasty-linux-amd64
+          - os: windows-latest
+            os_name: windows
+            platform: windows/amd64
+            gui_artifact: cfb-dynasty-gui-windows-amd64.zip
+            cli_artifact: cfb-dynasty-windows-amd64.exe
+          - os: macos-latest
+            os_name: darwin
+            platform: darwin/universal
+            gui_artifact: cfb-dynasty-gui-darwin-universal.tar.gz
+            cli_artifact: cfb-dynasty-darwin-universal
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install Linux WebKit deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+
+      - name: Build GUI (Linux)
+        if: runner.os == 'Linux'
+        working-directory: cmd/cfb-dynasty-gui
+        run: wails build -platform ${{ matrix.platform }} -tags webkit2_41 -clean
+
+      - name: Build GUI (macOS / Windows)
+        if: runner.os != 'Linux'
+        working-directory: cmd/cfb-dynasty-gui
+        run: wails build -platform ${{ matrix.platform }} -clean
+
+      - name: Build CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          case "${{ runner.os }}" in
+            Linux)
+              go build -trimpath -ldflags="-s -w" -o "dist/${{ matrix.cli_artifact }}" ./cmd/cfb-dynasty
+              ;;
+            Windows)
+              go build -trimpath -ldflags="-s -w" -o "dist/${{ matrix.cli_artifact }}" ./cmd/cfb-dynasty
+              ;;
+            macOS)
+              # Universal CLI: build both arches and lipo when possible.
+              GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o /tmp/cfb-dynasty-arm64 ./cmd/cfb-dynasty
+              GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /tmp/cfb-dynasty-amd64 ./cmd/cfb-dynasty
+              lipo -create -output "dist/${{ matrix.cli_artifact }}" /tmp/cfb-dynasty-arm64 /tmp/cfb-dynasty-amd64
+              ;;
+          esac
+
+      - name: Package GUI (Linux)
+        if: runner.os == 'Linux'
+        working-directory: cmd/cfb-dynasty-gui
+        run: |
+          set -euo pipefail
+          mkdir -p ../../dist
+          tar -C build/bin -czf "../../dist/${{ matrix.gui_artifact }}" cfb-dynasty-gui
+
+      - name: Package GUI (Windows)
+        if: runner.os == 'Windows'
+        working-directory: cmd/cfb-dynasty-gui
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ..\..\dist | Out-Null
+          Compress-Archive -Path build\bin\cfb-dynasty-gui.exe -DestinationPath "..\..\dist\${{ matrix.gui_artifact }}" -Force
+
+      - name: Package GUI (macOS)
+        if: runner.os == 'macOS'
+        working-directory: cmd/cfb-dynasty-gui
+        run: |
+          set -euo pipefail
+          mkdir -p ../../dist
+          tar -C build/bin -czf "../../dist/${{ matrix.gui_artifact }}" cfb-dynasty-gui.app
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os_name }}
+          path: |
+            dist/${{ matrix.gui_artifact }}
+            dist/${{ matrix.cli_artifact }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: release-*
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts -type f | sort
+
+      - name: Determine release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+            name="${tag}"
+            prerelease=false
+            nightly=false
+            publish=true
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            tag="nightly"
+            name="Nightly"
+            prerelease=true
+            nightly=true
+            publish=true
+          else
+            tag=""
+            name=""
+            prerelease=false
+            nightly=false
+            publish=false
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+          echo "nightly=${nightly}" >> "$GITHUB_OUTPUT"
+          echo "publish=${publish}" >> "$GITHUB_OUTPUT"
+          echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Write release notes (nightly)
+        if: steps.meta.outputs.nightly == 'true'
+        run: |
+          cat > release-notes.md <<EOF
+          ## Nightly build
+
+          Automated build from \`main\` (\`${{ steps.meta.outputs.sha_short }}\`) on ${{ steps.meta.outputs.date }}.
+
+          ### Downloads
+          - **GUI**: \`cfb-dynasty-gui-*-*.tar.gz\` / \`.zip\` for Linux, Windows, and macOS
+          - **CLI**: \`cfb-dynasty-*\` for each platform
+
+          Schema bundles (\`C27_*.gz\`) are **not** included. Point the GUI at your local schema folder on first launch.
+
+          This prerelease is overwritten on every push to \`main\`.
+          EOF
+
+      - name: Replace previous nightly
+        if: steps.meta.outputs.nightly == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Drop the previous nightly release + tag so assets stay current.
+          gh release delete nightly --cleanup-tag --yes 2>/dev/null || true
+
+      - name: Publish nightly release
+        if: steps.meta.outputs.nightly == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          body_path: release-notes.md
+          files: artifacts/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish versioned release
+        if: steps.meta.outputs.publish == 'true' && steps.meta.outputs.nightly != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          generate_release_notes: true
+          prerelease: false
+          files: artifacts/*
+          fail_on_unmatched_files: true
+          body: |
+            ## Downloads
+
+            - **GUI** (`cfb-dynasty-gui`): Linux, Windows, and macOS packages
+            - **CLI** (`cfb-dynasty`): matching platform binaries
+
+            Schema bundles (`C27_*.gz`) are **not** included. On first launch, choose your schema folder, then open a dynasty save.
+
+            ### GUI quick start
+            1. Download the package for your OS and extract it
+            2. Run `cfb-dynasty-gui` (or the `.app` / `.exe`)
+            3. Choose the folder containing your `C27_*.gz` schema
+            4. Open a save (Windows default: `Documents\EA SPORTS CFB27\saves`)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip publish
+        if: steps.meta.outputs.publish != 'true'
+        run: echo "Build artifacts uploaded; skipping GitHub Release (not main or a v* tag)."

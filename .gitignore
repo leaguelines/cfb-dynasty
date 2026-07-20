@@ -34,5 +34,13 @@ Thumbs.db
 /data/
 *.gz
 
-# Internal documentation (not for public repo)
-/docs/internal/
+# Optional GUI logo packs (large; UI works without them)
+/cmd/cfb-dynasty-gui/frontend/dist/static/teams/
+/cmd/cfb-dynasty-gui/frontend/dist/static/conferences/
+/cmd/cfb-dynasty-gui/frontend/dist/static/abilities/
+
+# Wails / GUI build output
+/build/
+/cmd/cfb-dynasty-gui/build/
+/cfb-dynasty-gui
+

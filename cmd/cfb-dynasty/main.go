@@ -17,12 +17,14 @@ Usage:
   cfb-dynasty export  [flags] <save-file>
   cfb-dynasty recruiting-tunables [flags]
   cfb-dynasty schema-build [flags] <ftx-dir>
+  cfb-dynasty gui     [flags]
 
 Commands:
   inspect   Show container metadata without full parsing
   export    Export parsed dynasty data as JSON
   recruiting-tunables  Dump recruiting formula constants from game tuning data
   schema-build  Build a C27_*.gz schema bundle from Frosty FTX extracts
+  gui       Open the desktop explorer (requires cfb-dynasty-gui on PATH)
 
 Export flags (default: all sections):
   --games          Include schedule/scores
@@ -70,6 +72,8 @@ func main() {
 		os.Exit(runRecruitingTunables(os.Args[2:]))
 	case "schema-build":
 		os.Exit(runSchemaBuild(os.Args[2:]))
+	case "gui":
+		os.Exit(runGUI(os.Args[2:]))
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		os.Exit(0)
