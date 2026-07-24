@@ -12,6 +12,7 @@ import (
 type skillGroupAttributeDef struct {
 	name          string
 	playerAbility string
+	tier          string // Primary, Secondary, or Tertiary
 }
 
 type skillGroupBucketInfo struct {
@@ -173,6 +174,7 @@ func bucketSkillsFromRow(f *File, row Record) []skillGroupAttributeDef {
 		if !ok || ref.Reference == nil {
 			continue
 		}
+		tier := strings.TrimSuffix(field, "Skills") // Primary / Secondary / Tertiary
 		for _, memberRef := range f.arrayStoreMemberRefs(ref.Reference) {
 			skillRow, ok := f.RecordByReference("PlayerSkill", memberRef)
 			if !ok {
@@ -185,6 +187,7 @@ func bucketSkillsFromRow(f *File, row Record) []skillGroupAttributeDef {
 			skills = append(skills, skillGroupAttributeDef{
 				name:          stringField(skillRow, "Name"),
 				playerAbility: ability,
+				tier:          tier,
 			})
 		}
 	}
@@ -252,6 +255,7 @@ func applySkillGroupLabels(player *PlayerExport, record Record, idx skillGroupIn
 					Name:          attr.name,
 					PlayerAbility: attr.playerAbility,
 					RatingKey:     playerAbilityRatingKey(attr.playerAbility),
+					Tier:          attr.tier,
 				}
 				if player.Ratings != nil {
 					if val, ok := player.Ratings[ae.RatingKey]; ok {

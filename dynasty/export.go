@@ -813,6 +813,9 @@ type SkillGroupAttributeExport struct {
 	PlayerAbility string `json:"playerAbility,omitempty"`
 	RatingKey     string `json:"ratingKey,omitempty"`
 	Rating        *int   `json:"rating,omitempty"`
+	// Tier is Primary, Secondary, or Tertiary from PlayerSkillGroupBucket.
+	// In-game skill-group ratings average Primary skills only.
+	Tier string `json:"tier,omitempty"`
 }
 
 // PlayerPhysicalAbilityExport is one equipped physical ability slot on a player.

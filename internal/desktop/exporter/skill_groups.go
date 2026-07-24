@@ -99,7 +99,7 @@ func buildSkillGroupRow(g dynasty.SkillGroupExport, ratings map[string]int) Skil
 		label = "Slot " + fmtInt(g.Slot)
 	}
 	sub := skillGroupSubRatings(g.Attributes, label, ratings)
-	rating, hasRating := skillGroupAverage(sub)
+	rating, hasRating := skillGroupDisplayRating(g.Attributes, sub)
 	row := SkillGroupRow{
 		Label:          label,
 		Rating:         rating,
@@ -193,6 +193,36 @@ func skillGroupAttributeValue(attr dynasty.SkillGroupAttributeExport, ratings ma
 		}
 	}
 	return 0, false
+}
+
+func skillGroupDisplayRating(attrs []dynasty.SkillGroupAttributeExport, sub []SkillGroupSubRating) (int, bool) {
+	// In-game skill-group ratings average PrimarySkills only (Secondary/Tertiary
+	// still appear in the detail list and can be purchased, but don't drive the header number).
+	var primary []int
+	hasTier := false
+	for _, attr := range attrs {
+		if attr.Tier != "" {
+			hasTier = true
+		}
+		if !strings.EqualFold(attr.Tier, "Primary") {
+			continue
+		}
+		if attr.Rating != nil {
+			primary = append(primary, *attr.Rating)
+		}
+	}
+	if len(primary) > 0 {
+		sum := 0
+		for _, v := range primary {
+			sum += v
+		}
+		return sum / len(primary), true
+	}
+	if hasTier {
+		// Primaries present but ratings unresolved — don't fall back to diluting with secondaries.
+		return 0, false
+	}
+	return skillGroupAverage(sub)
 }
 
 func skillGroupAverage(sub []SkillGroupSubRating) (int, bool) {

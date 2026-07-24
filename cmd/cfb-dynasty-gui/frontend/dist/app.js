@@ -540,6 +540,57 @@ async function pageRecruitingRankings(conf = "") {
   `;
 }
 
+function renderSkillGroups(groups, player) {
+  const rows = groups || [];
+  if (!rows.length) return "";
+  const capped = player?.SkillGroupCapTotal ?? player?.skillGroupCapTotal ?? "";
+  const unlocked = player?.SkillGroupUnlockedTotal ?? player?.skillGroupUnlockedTotal ?? "";
+  const summaryParts = [];
+  if (capped !== "" && capped != null) summaryParts.push(`${esc(capped)} capped`);
+  if (unlocked !== "" && unlocked != null) summaryParts.push(`${esc(unlocked)} upgradeable`);
+  const items = rows.map((g) => {
+    const label = g.Label || g.label || "Slot";
+    const rating = g.Rating ?? g.rating;
+    const hasRating = g.HasRating ?? g.hasRating;
+    const segments = (g.Segments || g.segments || []).map((s) => {
+      const kind = s.Kind || s.kind || "available";
+      return `<span class="skill-seg skill-seg-${esc(kind)}"></span>`;
+    }).join("");
+    const bar = `<span class="skill-group-bar" aria-hidden="true">${segments}</span>`;
+    const head = `
+      <span class="skill-group-label">
+        <span class="skill-group-name">${esc(label)}</span>
+        ${hasRating ? `<span class="skill-group-rating">${esc(rating)}</span>` : ""}
+      </span>
+      ${bar}`;
+    const subs = g.SubRatings || g.subRatings || [];
+    const hasSubs = g.HasSubRatings ?? g.hasSubRatings ?? subs.length > 0;
+    if (hasSubs && subs.length) {
+      const detail = subs.map((s) => `
+        <div class="skill-sub-row">
+          <span class="skill-sub-name">${esc(s.Name || s.name || "")}</span>
+          <span class="skill-sub-value">${esc(s.Value ?? s.value ?? "")}</span>
+          <span class="skill-sub-bar"><span class="skill-sub-fill" style="width: ${esc(s.BarPercent ?? s.barPercent ?? 0)}%"></span></span>
+        </div>`).join("");
+      return `<details class="skill-group-item"><summary class="skill-group-row">${head}</summary><div class="skill-group-detail">${detail}</div></details>`;
+    }
+    return `<div class="skill-group-item"><div class="skill-group-row">${head}</div></div>`;
+  }).join("");
+  return `
+    <div class="skill-groups-card">
+      <div class="skill-groups-head">
+        <h2>Skill groups</h2>
+        <p class="muted skill-groups-summary">${summaryParts.join(" · ")}</p>
+      </div>
+      <div class="skill-group-list">${items}</div>
+      <div class="skill-group-legend">
+        <span class="legend-item"><span class="skill-seg skill-seg-filled"></span> Developed</span>
+        <span class="legend-item"><span class="skill-seg skill-seg-available"></span> Upgradeable</span>
+        <span class="legend-item"><span class="skill-seg skill-seg-capped"></span> Cap</span>
+      </div>
+    </div>`;
+}
+
 async function pagePlayer(id) {
   const cfg = await call("GetConfig");
   setNav(cfg);
@@ -553,6 +604,7 @@ async function pagePlayer(id) {
       <td>${logo(s.TeamLogo || s.teamLogo)} <a href="#/schools/${s.TeamID ?? s.teamId}/class">${esc(s.TeamName || s.teamName)}</a></td>
       <td>${esc(s.Influence ?? s.influence ?? "")}</td>
     </tr>`).join("");
+  const skillGroupsHtml = renderSkillGroups(v.skillGroups || v.SkillGroups || [], p);
   return `
     <section class="stack">
       <p><a href="#/dashboard">← Dashboard</a></p>
@@ -576,6 +628,7 @@ async function pagePlayer(id) {
         <dt>Height/Weight</dt><dd>${esc(p.Height ?? p.height ?? "")} / ${esc(p.Weight ?? p.weight ?? "")}</dd>
       </dl>
       ${interest ? `<h2>School interest</h2><div class="table-wrap"><table class="data"><thead><tr><th>School</th><th>Influence</th></tr></thead><tbody>${interest}</tbody></table></div>` : ""}
+      ${skillGroupsHtml}
       <h2>Ratings</h2>
       <div class="table-wrap"><table class="data"><thead><tr><th>Attribute</th><th>Value</th></tr></thead><tbody>${ratingRows || `<tr><td colspan="2" class="muted">None</td></tr>`}</tbody></table></div>
     </section>
