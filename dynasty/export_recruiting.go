@@ -46,8 +46,10 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 			export.ActivePitches = activePitchesFromTarget(f, targetRow)
 			setOptionalNonNegativeInt(targetRow, "UnlockedIntelBitfield", &export.UnlockedIntelBitfield)
 		}
-		if userTargetTable != nil && record.Index < len(userTargetTable.Records) {
-			applyUserRecruitTargetFields(&export, userTargetTable.Records[record.Index])
+		if userTargetTable != nil {
+			if userRow, ok := userRecruitTargetForRecruit(userTargetTable, record.Index); ok {
+				applyUserRecruitTargetFields(f, &export, userRow)
+			}
 		}
 
 		if !hasRecruitingData(export) {
@@ -56,6 +58,36 @@ func (f *File) buildRecruitingExports() ([]RecruitingTargetExport, error) {
 		exports = append(exports, export)
 	}
 	return exports, nil
+}
+
+// userRecruitTargetForRecruit finds the UserRecruitTarget whose Recruit ref
+// points at recruitIndex. URT capacity is much smaller than Recruit and is not
+// 1:1 by row index.
+func userRecruitTargetForRecruit(userTargetTable *Table, recruitIndex int) (Record, bool) {
+	if userTargetTable == nil {
+		return Record{}, false
+	}
+	for _, row := range userTargetTable.Records {
+		ref, ok := row.Get("Recruit")
+		if !ok || ref.Reference == nil {
+			continue
+		}
+		if int(ref.Reference.RowNumber) == recruitIndex {
+			return row, true
+		}
+	}
+	// Legacy fallback: some older saves aligned URT index with Recruit index.
+	if recruitIndex >= 0 && recruitIndex < len(userTargetTable.Records) {
+		row := userTargetTable.Records[recruitIndex]
+		if ref, ok := row.Get("Recruit"); ok && ref.Reference != nil {
+			if int(ref.Reference.RowNumber) == recruitIndex {
+				return row, true
+			}
+			// Indexed row belongs to a different recruit; do not misuse it.
+			return Record{}, false
+		}
+	}
+	return Record{}, false
 }
 
 func applyRecruitTargetFields(export *RecruitingTargetExport, record Record, f *File) {
@@ -86,17 +118,95 @@ func applyRecruitTargetFields(export *RecruitingTargetExport, record Record, f *
 	}
 }
 
-func applyUserRecruitTargetFields(export *RecruitingTargetExport, record Record) {
+func applyUserRecruitTargetFields(f *File, export *RecruitingTargetExport, record Record) {
 	export.IsFavorite = boolField(record, "IsFavorite")
-	if export.ScholarshipStatus == "" {
-		export.ScholarshipStatus = stringField(record, "ScholarshipStatus")
+	if status := stringField(record, "ScholarshipStatus"); status != "" && status != "None" {
+		export.ScholarshipStatus = status
 	}
-	if export.SwayPitch == "" {
-		export.SwayPitch = stringField(record, "SwayPitch")
+	if sway := stringField(record, "SwayPitch"); sway != "" {
+		export.SwayPitch = sway
+	}
+
+	// User-board influence/hours/NIL are the values that match the UI and
+	// ProspectTargetSchool deltas; prefer them over RecruitTarget copies.
+	setOptionalPositiveInt(record, "CurrentNILOffer", &export.CurrentNILOffer)
+	setOptionalPositiveInt(record, "NILExpectation", &export.NILExpectation)
+	setOptionalPositiveInt(record, "OriginalNILExpectation", &export.OriginalNILExpectation)
+	setOptionalRecruitingInt(record, "CurrentScholarshipBonus", &export.CurrentScholarshipBonus)
+	setOptionalPositiveInt(record, "ProspectInfluenceTotal", &export.ProspectInfluenceTotal)
+	setOptionalRecruitingInt(record, "ProspectInfluenceDelta", &export.ProspectInfluenceDelta)
+	setOptionalPositiveInt(record, "ProspectInfluenceTotalLastWeek", &export.ProspectInfluenceTotalLastWeek)
+	setOptionalPositiveInt(record, "ProspectHoursSpentCurrent", &export.ProspectHoursSpentCurrent)
+	setOptionalPositiveInt(record, "CommittedWeekNumber", &export.CommittedWeekNumber)
+
+	if len(export.ActivePitches) == 0 {
+		export.ActivePitches = activePitchesFromTarget(f, record)
 	}
 	if export.ScheduledVisit == nil {
-		// UserRecruitTarget duplicates pursuit fields; only fill visit when target row lacked it.
+		if visit, ok := record.Get("ScheduledVisit"); ok && visit.Reference != nil {
+			if visitRecord, ok := f.RecordByReference("ActiveVisitInfo", visit.Reference); ok {
+				export.ScheduledVisit = buildRecruitingVisitExport(visitRecord)
+			}
+		}
 	}
+	export.RecruitingFeedback = recruitingFeedbackFromTarget(f, record, "RecruitingFeedback")
+	export.ImmediateRecruitingFeedback = recruitingFeedbackFromTarget(f, record, "ImmediateRecruitingFeedback")
+}
+
+func recruitingFeedbackFromTarget(f *File, record Record, field string) []RecruitingActionFeedbackExport {
+	ref, ok := record.Get(field)
+	if !ok || ref.Reference == nil {
+		return nil
+	}
+	var out []RecruitingActionFeedbackExport
+	for _, memberRef := range f.arrayStoreMemberRefs(ref.Reference) {
+		row, ok := f.RecordByReference("RecruitingActionFeedbackEntry", memberRef)
+		if !ok {
+			continue
+		}
+		entry := RecruitingActionFeedbackExport{
+			ActionType: normalizeEnum(stringField(row, "RecruitingActionType")),
+			Intensity:  normalizeEnum(stringField(row, "RecruitingActionIntensity")),
+			Bonuses:    recruitingBonusesFromFeedback(f, row),
+		}
+		setOptionalNonNegativeInt(row, "HoursSpent", &entry.HoursSpent)
+		setOptionalRecruitingInt(row, "InfluenceGained", &entry.InfluenceGained)
+		setOptionalRecruitingInt(row, "MinInfluenceGain", &entry.MinInfluenceGain)
+		setOptionalRecruitingInt(row, "MaxInfluenceGain", &entry.MaxInfluenceGain)
+		setOptionalNonNegativeInt(row, "IntelUnlocked", &entry.IntelUnlocked)
+		if entry.ActionType == "" && entry.Intensity == "" &&
+			entry.InfluenceGained == nil && len(entry.Bonuses) == 0 {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func recruitingBonusesFromFeedback(f *File, feedback Record) []RecruitingActionBonusExport {
+	ref, ok := feedback.Get("BonusList")
+	if !ok || ref.Reference == nil {
+		return nil
+	}
+	var out []RecruitingActionBonusExport
+	for _, memberRef := range f.arrayStoreMemberRefs(ref.Reference) {
+		row, ok := f.RecordByReference("RecruitingActionBonus", memberRef)
+		if !ok {
+			continue
+		}
+		bonus := RecruitingActionBonusExport{
+			BonusType:      normalizeEnum(stringField(row, "BonusType")),
+			BonusValueType: normalizeEnum(stringField(row, "BonusValueType")),
+		}
+		if v, ok := intFieldOK(row, "BonusValue"); ok {
+			bonus.BonusValue = v
+		}
+		if bonus.BonusType == "" && bonus.BonusValue == 0 {
+			continue
+		}
+		out = append(out, bonus)
+	}
+	return out
 }
 
 func buildRecruitingVisitExport(record Record) *RecruitingVisitExport {
@@ -146,7 +256,8 @@ func hasRecruitingData(export RecruitingTargetExport) bool {
 		export.OriginalNILExpectation != nil || export.CurrentScholarshipBonus != nil ||
 		export.ProspectInfluenceTotal != nil || export.ProspectInfluenceDelta != nil ||
 		export.ProspectInfluenceTotalLastWeek != nil || export.ProspectHoursSpentCurrent != nil ||
-		export.CommittedWeekNumber != nil
+		export.CommittedWeekNumber != nil ||
+		len(export.RecruitingFeedback) > 0 || len(export.ImmediateRecruitingFeedback) > 0
 }
 
 func activePitchesFromTarget(f *File, record Record) []RecruitingPitchExport {

@@ -1,5 +1,5 @@
 ---
-title: "CFB 27 Recruiting Tunables -- Weights and Math Reference"
+title: "CFB 27 Recruiting Tunables: Weights and Math Reference"
 geometry: margin=0.75in
 header-includes:
   - \usepackage{longtable}
@@ -15,6 +15,17 @@ Source command: `cfb-dynasty recruiting-tunables -schema-dir ./data`
 
 This document records tuning constants and inferred influence arithmetic only.  
 Compiled formula bytecode is not available; evaluation order below is inferred from schema field structure (`RecruitingActionInfo`, `RecruitTarget`, `ProspectTargetSchool`).
+
+## Executive summary
+
+- Weekly influence on hour-based actions is modeled as **base + pipeline bonus + motivation grade bonuses**, with a pitch mismatch penalty where applicable.
+- Soft/Hard Sell motivation→grade-curve assignment is **not always FTC order**; reload tests land on discrete permutation totals ([Pitch slot assignment](#pitch-slot-assignment)).
+- Stage visibility uses commit-score share thresholds: **Top 5 at 35%**, **Top 3 at 75%**, **commit at 100%**.
+- SoftSell / HardSell / Sway / Contact Friends & Family hours and base influence are listed under recruiting actions; visit activities add separate influence.
+- Visit competitive/complimentary ±5 and the **hidden per-position competitive threshold**: [Competitive & Complimentary Visits](./competitive-complimentary-visits.md).
+- NIL offer influence is a spline on **offer ÷ expectation**: [NIL Offer → Recruiting Influence](./nil-offer-recruiting-influence.md).
+- Program prestige stars from My School grades: [School Prestige From My School Grades](./school-prestige-from-grades.md).
+- Tables below are the full scalar/array dump for pipelines, pitches, motivations, and visit activities.
 
 ---
 
@@ -43,13 +54,13 @@ Weekly influence gain for an hour-based action:
 ```
 influenceGain = BaseInfluenceGranted
               + PipelineInfluenceBonusTable[pipelineLevel]
-              + sum of MotivationGradeBonus(pitchMotivationSlot_i, schoolLetterGrade)
+              + sum of MotivationGradeBonus(assignedCurveRow_i, schoolLetterGrade_for_motivation_i)
               + matchingMotivationBoosts (see ChanceToSwayBoostPerMatchingMotivation)
               + NonMatchingMotivationPenalty   (PITCH only; negative when pitch mismatches)
 ```
 
 - `pipelineLevel` is indexed **0-5** (six entries in every `PipelineInfluenceBonusTable`).
-- `MotivationGradeBonus` uses `LetterGradeValueTable` rows attached to the action (three rows for PITCH; one row per motivation slot).
+- `MotivationGradeBonus` uses `LetterGradeValueTable` rows attached to the action (three rows for PITCH). Which motivation uses which row can vary per week resolve; see [Pitch slot assignment](#pitch-slot-assignment).
 - `NonMatchingMotivationPenalty` is **0** for non-pitch actions and for `PITCH` / `Sway`.
 
 ---
@@ -157,8 +168,10 @@ Add `PipelineInfluenceBonusTable[pipelineLevel]` where `pipelineLevel` is in {0,
 
 ## Pitch motivation grade bonuses
 
-Each `PITCH` row has `MotivationGradesInfluenceBonusTable` with **three** `LetterGradeValueTable` rows (motivation slots 1-3, aligned with `AssociatedMotivation1..3` on `RecruitingPitchInfo`).  
-When a recruit motivation matches a pitch motivation slot, the school's letter grade for the mapped `MySchoolGrade` (see below) selects a bonus from that slot's row.
+Each `PITCH` row has `MotivationGradesInfluenceBonusTable` with **three** `LetterGradeValueTable` rows (motivation slots 1-3).  
+When a recruit motivation is scored, the school's letter grade for the mapped `MySchoolGrade` (see below) selects a bonus from **one** of those three curve rows.
+
+`RecruitingPitchInfo.AssociatedMotivation1..3` is the **FTC catalog order** for the pitch’s three motivations. Soft/Hard Sell does **not** always bind motivation *i* to curve row *i* at runtime (see [Pitch slot assignment](#pitch-slot-assignment) below).
 
 `PITCH` / `Sway` has no motivation grade table attached in tuning.
 
@@ -202,6 +215,69 @@ Grade column order: F, D-, D, D+, C-, C, C+, B-, B, B+, A-, A, A+
 
 Matching-motivation scalar: `ChanceToSwayBoostPerMatchingMotivation` = **15**
 
+---
+
+## Pitch slot assignment
+
+Reload-controlled dynasty saves (`data/hard-sell-slots-test/`) prove Soft/Hard Sell grade influence can change with **identical** school grades and the same queued pitch.
+
+### Setup (Nolan Joslin id 2315)
+
+- Ideal pitch: Status Seeker (`ProveYourself`) → Brand Exposure / Coach Prestige / Conference Prestige
+- School: Rutgers → grades **C− / C+ / A+**
+- Pipeline: BigApple **CulturalPillar** (HardSell pipe table index 5 → **+20**)
+- No recruiting coach talents on Rutgers CTE for this save
+- Baseline save already had `ActivePitches = ProveYourself/HardSell` queued; week not yet advanced
+- Three advances from that baseline (S1–S3)
+
+### Observed Hard Sell week deltas (Rutgers `TeamInfluence`)
+
+| Save | Rutgers | Δ vs baseline | Feedback `InfluenceGained` | Pipeline bonus | grade+base |
+|------|--------:|--------------:|---------------------------:|---------------:|-----------:|
+| BASELINE | 126 | — | (prior Visit) | — | — |
+| S1 | 190 | **+64** | 64 | 20 | **44** |
+| S2 | 194 | **+68** | 68 | 20 | **48** |
+| S3 | 190 | **+64** | 64 | 20 | **44** |
+
+Hard Sell permutation set for those three grades (base **40** + three slot bonuses):
+
+| Total | Assignment |
+|------:|------------|
+| 41 | Coach→1, BE→2, Conf→3 |
+| 43 | Conf→1, BE→2, Coach→3 |
+| **44** | **FTC: BE→1, Coach→2, Conf→3** |
+| **48** | Conf→1, Coach→2, BE→3 |
+| 53 | BE→1, Conf→2, Coach→3 |
+| 55 | Coach→1, Conf→2, BE→3 |
+
+With CulturalPillar **+20**: **61, 63, 64, 68, 73, 75**.  
+S1/S3 = **64** (FTC+pipe). S2 = **68** (alt perm+pipe). Exact matches; not continuous jitter.
+
+### Runtime feedback (`UserRecruitTarget.RecruitingFeedback`)
+
+After week advance, the latest `RecruitingActionFeedbackEntry` for the pitch stores:
+
+- `InfluenceGained` = full week pitch total (base + grade slots + pipeline ± other)
+- `BonusList` with `Pipeline` broken out (here **20**); grade-slot pieces are **not** listed separately (`RecruitingBonusType` is only Coach / Pipeline)
+- `MinInfluenceGain` = **0**, `MaxInfluenceGain` = **InfluenceGained** (mirrors the rolled total; does **not** advertise the full permutation band)
+
+### Timing
+
+Because the baseline already had Hard Sell queued and only the advance differed across reloads, the motivation→curve assignment is chosen at **week-resolve apply**, not when the pitch is first assigned in the UI.
+
+Native apply code is not recovered yet: FranTk field names such as `MotivationGradesInfluenceBonusTable` have **zero** static code xrefs (reflective access), same pattern as VisitEval ([ghidra-export/hard-sell-slot-apply.md](../ghidra-export/hard-sell-slot-apply.md)).
+
+### Soft Sell (predicted, not yet reload-tested)
+
+Same Rutgers grades; SoftSell pipe index 5 → **+10**. Unique grade-only totals: **21, 22, 23, 24, 27 (FTC)** → with pipe **31–37**. Use `go run ./tools/hard-sell-slots` after Soft Sell after-saves to match.
+
+### Open
+
+- Exact RNG / selection rule among the six permutations (uniform vs FTC-biased vs other)
+- Whether Soft Sell uses the same shuffle
+- Wrong-pitch / `NonMatchingMotivationPenalty` interaction with shuffle
+
+Analyzer: `go run ./tools/hard-sell-slots -dir data/hard-sell-slots-test`
 ---
 
 ## Motivation to school grade mapping
@@ -295,6 +371,8 @@ Scalars (`VisitTunables`):
 | `competitiveVisitPenalty` | 5 |
 | `complimentaryVisitBonus` | 5 |
 
+Per-position competitive thresholds and complimentary position groups: [Competitive & Complimentary Visits](./competitive-complimentary-visits.md) (at-or-below threshold skips −5; `count > threshold` is the working assumption; CB A/B).
+
 `SCHEDULEVISIT` costs **40** hours with **0** base influence; influence from visit activities is applied separately via `VisitActivityInfluenceTable`.
 
 ### Visit activity types
@@ -337,6 +415,8 @@ Grade column order: F, D-, D, D+, C-, C, C+, B-, B, B+, A-, A, A+
 | `ScholarshipBonusLowExpectationCutoff` | 10 |
 | `MinimumNILToOfferPercentage` | 0.80 |
 | `SoftCommitInfluenceVariance` | 10 |
+
+NIL offer → influence spline (offer ÷ expectation, low-expectation raw path, Deal Maker): [NIL Offer → Recruiting Influence](./nil-offer-recruiting-influence.md).
 
 ---
 
@@ -465,4 +545,4 @@ Tuning FTC array elements use EA `s_int` storage with `minValue = 0x80000000`. E
 - Compiled expression bodies (`RecruitingStageDetails_GetSchoolPercentageOfCommitScore`, `RecruitingEval_ApplyWeeklyRecruitingHours`, etc.)
 - Exact stacking order of additive bonuses vs multipliers
 - Per-activity motivation to interest-level mapping (which visit activity triggers which `VisitActivityInterestLevel`)
-- `RecruitingActionFeedbackEntry` / `RecruitingActionBonus` runtime bonus breakdown on executed actions
+- Native Soft/Hard Sell motivation→curve shuffle rule (empirical outcomes documented under [Pitch slot assignment](#pitch-slot-assignment); FranTk field strings have no static xrefs)

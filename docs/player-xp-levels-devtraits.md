@@ -5,9 +5,13 @@ geometry: margin=0.75in
 
 Patch 3 tuning (`dynasty-tuning-binary.FTC`) + save `DYNASTY-2026OFFLINEFINAL`.
 
-Players do not have a `Level` field. Progression is:
+## Executive summary
 
-**earn XP → hit XP threshold → gain Skill Points → spend SP on ratings**
+- There is no player `Level` field. Flow is: **earn XP → hit XP threshold → gain Skill Points → spend SP on ratings**.
+- Offseason training XP uses a random position/year range, the development trait multiplier, coach bonuses, and the facilities bonus.
+- Difficulty / Wear & Tear XP modifiers in tuning do **not** meaningfully change dynasty offseason XP (A/B tested).
+- Dev traits scale XP via a spline (%); higher traits progress faster.
+- Coach percent and flat XP talents: [Coaching abilities: Player XP](./coaching-abilities-player-xp.md).
 
 ---
 
@@ -22,9 +26,9 @@ What *is* readable and confirmed for dynasty:
 | Source | Effect |
 |--------|--------|
 | Athletic facilities | +0 to +20 XP by letter grade (A+ = 20) |
-| Coach XP talents | percent (e.g. Everybody Eats up to +10%) or flat — see `docs/coaching-abilities-player-xp.md` |
+| Coach XP talents | percent (e.g. Everybody Eats up to +10%) or flat; see [Player XP talents](coaching-abilities-player-xp.md) |
 
-### Difficulty / Wear & Tear XP modifiers — not used for dynasty offseason
+### Difficulty / Wear & Tear XP modifiers (not used for dynasty offseason)
 
 `PlayerProgressionTuning` still contains:
 
@@ -79,7 +83,7 @@ Tables live in tuning `PositionValueTable` (rows 11–20 normal max/min, 22–31
 
 Redshirt Min/Max bands are about **5–8% lower** than the matching non-redshirt band.
 
-Relevant coach % talents on this grant (stack additively; see `docs/coaching-abilities-player-xp.md`):
+Relevant coach % talents on this grant (stack additively; see [Player XP talents](coaching-abilities-player-xp.md)):
 
 | Talent | Typical max stack |
 |--------|------------------:|
@@ -147,7 +151,7 @@ Higher-OVR players need more XP per step.
 
 Evidence: `PlayerProgressionTuning.IncrementAmount = 1`.
 
-(RTG is different: `RTGPlayerSPPerLevel = 40` — ignore that for dynasty.)
+(RTG is different: `RTGPlayerSPPerLevel = 40`. It does not apply to dynasty.)
 
 You spend those SP on attribute/ability upgrades (`AbilityProgressionTunable.UpgradeCostSpline`). Cost scales with current rating (often 5 SP at low ratings, rising to 30–45+ near 90–95). Cap note: `AbilityUpgradeCapPerSkillPoint = 5`.
 

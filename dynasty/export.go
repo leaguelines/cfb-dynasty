@@ -431,6 +431,8 @@ type RecruitingTargetExport struct {
 	SendTheHouse                   bool                            `json:"sendTheHouse,omitempty"`
 	VisitRecruitsSchool            bool                            `json:"visitRecruitsSchool,omitempty"`
 	IsFavorite                     bool                            `json:"isFavorite,omitempty"`
+	RecruitingFeedback             []RecruitingActionFeedbackExport `json:"recruitingFeedback,omitempty"`
+	ImmediateRecruitingFeedback    []RecruitingActionFeedbackExport `json:"immediateRecruitingFeedback,omitempty"`
 }
 
 // RecruitingSchoolInterestExport is one school's interest in a prospect.
@@ -444,6 +446,26 @@ type RecruitingSchoolInterestExport struct {
 type RecruitingPitchExport struct {
 	Pitch     string `json:"pitch,omitempty"`
 	Intensity string `json:"intensity,omitempty"`
+}
+
+// RecruitingActionFeedbackExport is one executed recruiting action breakdown
+// from UserRecruitTarget.RecruitingFeedback / ImmediateRecruitingFeedback.
+type RecruitingActionFeedbackExport struct {
+	ActionType    string                         `json:"actionType,omitempty"`
+	Intensity     string                         `json:"intensity,omitempty"`
+	HoursSpent    *int                           `json:"hoursSpent,omitempty"`
+	InfluenceGained *int                         `json:"influenceGained,omitempty"`
+	MinInfluenceGain *int                        `json:"minInfluenceGain,omitempty"`
+	MaxInfluenceGain *int                        `json:"maxInfluenceGain,omitempty"`
+	IntelUnlocked *int                           `json:"intelUnlocked,omitempty"`
+	Bonuses       []RecruitingActionBonusExport  `json:"bonuses,omitempty"`
+}
+
+// RecruitingActionBonusExport is one bonus line on a feedback entry (Coach / Pipeline).
+type RecruitingActionBonusExport struct {
+	BonusType      string `json:"bonusType,omitempty"`
+	BonusValue     int    `json:"bonusValue"`
+	BonusValueType string `json:"bonusValueType,omitempty"`
 }
 
 // SchoolGradesExport is a team's recruiting pitch grades from MySchoolTrackingTable.

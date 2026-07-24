@@ -17,6 +17,7 @@ coverage.txt
 # IDE
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 *~
@@ -34,10 +35,16 @@ Thumbs.db
 /data/
 *.gz
 
+# Ghidra decompile cache / RE notes (game-derived; regenerate via tools/ghidra/)
+/ghidra-export/
+
 # Optional GUI logo packs (large; UI works without them)
 /cmd/cfb-dynasty-gui/frontend/dist/static/teams/
 /cmd/cfb-dynasty-gui/frontend/dist/static/conferences/
 /cmd/cfb-dynasty-gui/frontend/dist/static/abilities/
+
+# Local RE / analysis helpers (do not commit)
+/tools/
 
 # Wails / GUI build output
 /build/

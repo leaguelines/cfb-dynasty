@@ -1,5 +1,5 @@
 ---
-title: "CFB 27 Coaching Abilities -- Recruiting"
+title: "CFB 27 Coaching Abilities: Recruiting"
 geometry: margin=0.75in
 header-includes:
   - \usepackage{longtable}
@@ -14,7 +14,17 @@ Derived from `dynasty-tuning-binary.FTC` (CFB 27).
 Talent values are identical in patch 2 and patch 3.
 
 Source: `Talent` / `TalentDataInt`. Runtime: `Team.CoachTalentEffects`.  
-Baseline recruiting constants from `RecruitingActionInfo`, `RecruitingTunables`, and `VisitTunables` (see also `docs/recruiting-tunables-math.md`).
+Baseline recruiting constants from `RecruitingActionInfo`, `RecruitingTunables`, and `VisitTunables` (see also [Recruiting tunables](recruiting-tunables-math.md)).
+
+**Full ability list (all trees):** [Coaching Abilities: Complete Guide](coaching-abilities.md).
+
+## Executive summary
+
+- Recruiting talents are mostly **flat influence**, **chance points**, or **letter-grade steps**. The style table below identifies each type.
+- HC + matching coordinator (and often the off-side) **add**; max stack is usually HC + OC + DC.
+- High-impact examples: **Making Friends** multiplies the base complimentary visit +5; **Hospitality** bumps visit activity impact; **Persuasive Personality** adds sway chance on top of motivation/pipeline sway math.
+- Baseline hours/influence for SoftSell, HardSell, Sway, and visit bonuses are listed under “How to read the numbers.”
+- Visit competitive/complimentary rules: [Competitive & Complimentary Visits](./competitive-complimentary-visits.md).
 
 ---
 
@@ -52,9 +62,9 @@ Useful baselines for the examples below:
 | HardSell pitch | 40 | 40 |
 | Sway pitch | 30 | 15 |
 | Contact Friends and Family | 25 | 20 |
-| Complimentary visit bonus | -- | 5 |
-| Visit activity (Interested, A) | -- | +30 |
-| Visit activity (Dealbreaker, A+) | -- | +48 |
+| Complimentary visit bonus | None | 5 |
+| Visit activity (Interested, A) | None | +30 |
+| Visit activity (Dealbreaker, A+) | None | +48 |
 
 SoftSell pitch grade bonus examples (matching motivation slot): A ~ +4 to +8, A+ ~ +6 to +10 depending on slot. HardSell A+ ~ +12 to +20.
 
@@ -88,13 +98,13 @@ Flat starting-interest boost for HS recruits at that position.
 
 Baseline primary-pipeline starting interest ladder (`InitialInterest_Pipeline`): **0 / 5 / 10 / 15 / 25 / 35** by pipeline level.
 
-**Example:** A non-pipeline recruit that would open at 0 starting interest opens at **+10** with HC Magnetic alone, or **+16** with full staff. That is roughly one full pipeline-level step on the starting-interest ladder (L2 = 10, L3 = 15).
+**Example:** A non-pipeline recruit that would open at 0 starting interest opens at **+10** with HC Magnetic alone, or **+16** with full staff. For comparison, L2 is 10 and L3 is 15 on the starting-interest ladder.
 
 ### Portal King (`PlayersLeaving_InterestBoost_Transfers`)
 
 Same numbers as Magnetic (**10 / 4 / 2**, max **16**), applied to transfer starting interest instead of HS.
 
-**Example:** Same as Magnetic -- a transfer QB opens **+10** more interested with HC Portal King, **+16** with full staff.
+**Example:** As with Magnetic, a transfer QB opens **+10** more interested with HC Portal King and **+16** with full staff.
 
 ---
 
@@ -114,7 +124,7 @@ Boosts the effective My School letter grade used for ideal-pitch evaluation by *
 - HC Ideal Situation (+3 steps): treated as **A-** for ideal-pitch purposes.  
 - Full staff (+9 steps): a **B** is treated as **A+** (and anything already A- or better saturates at the top of the ladder).
 
-That matters because ideal pitches pull the grade bonus from that motivation's letter grade -- jumping B to A- moves SoftSell slot bonuses from roughly +1/+1/+2 up toward +3/+4/+6 territory (exact slot tables in `recruiting-tunables-math.md`).
+Ideal pitches use that motivation's letter grade for the grade bonus. Moving from B to A- changes SoftSell slot bonuses from approximately +1/+1/+2 to +3/+4/+6 (exact slot tables in [Recruiting tunables](recruiting-tunables-math.md)).
 
 ### Upsell (`Recruiting_PointsBoost_SchoolGrade`)
 
@@ -122,7 +132,7 @@ Adds flat influence on top of the My School grade contribution when grades affec
 
 - HC: **+10**. Full staff: **+20**.
 
-**Example -- SoftSell pitch with an A+ matching motivation:**  
+**Example: SoftSell pitch with an A+ matching motivation:**  
 Base SoftSell influence is **20**. A+ matching-motivation grade bonus is about **+6 to +10** depending on slot (call it **+10** for the strongest SoftSell slot).
 
 | Setup | Grade contribution | SoftSell total (base 20 + grade) |
@@ -131,9 +141,9 @@ Base SoftSell influence is **20**. A+ matching-motivation grade bonus is about *
 | HC Upsell (+10) | +20 | **40** |
 | Full staff Upsell (+20) | +30 | **50** |
 
-So Upsell does not change your letter grade on the HUD -- it makes the points you already earn from that grade larger. An A+ SoftSell that was worth ~30 influence becomes ~50 with full Upsell stack, before pipeline or other bonuses.
+Upsell does not change the letter grade shown on the HUD. It increases the points earned from that grade. An A+ SoftSell worth about 30 influence becomes about 50 with a full Upsell stack, before pipeline or other bonuses.
 
-**Example -- HardSell with A+ on the biggest HardSell slot (+20 grade bonus):**  
+**Example: HardSell with A+ on the biggest HardSell slot (+20 grade bonus):**  
 Base HardSell **40** + grade **20** = **60**. Full Upsell (+20) makes the grade piece **40**, for **80** total before pipeline.
 
 ### Most Influential (`Recruiting_Action_InfluenceBoost`)
@@ -163,9 +173,9 @@ Flat boost to complimentary-visit influence.
 
 - HC: **+20**. Full staff: **+50**.
 
-Baseline `complimentaryVisitBonus` = **5**, and competitive visits take a **-5** penalty.
+Baseline `complimentaryVisitBonus` = **5**, and competitive visits take a **-5** penalty. Per-position thresholds and complimentary groups: [Competitive & Complimentary Visits](./competitive-complimentary-visits.md).
 
-**Example:** A complimentary visit that was worth **5** influence becomes **25** with HC Making Friends, or **55** with full staff. That is a 5x to 11x multiplier on the base complimentary bonus alone -- one of the largest relative swings in the tree.
+**Example:** A complimentary visit worth **5** influence becomes **25** with HC Making Friends or **55** with full staff. The talent increases the base complimentary bonus by 5x to 11x.
 
 ### Hospitality (`Recruiting_PointsBoost_Visit`)
 
@@ -175,7 +185,7 @@ Flat boost to normal visit impact for that position.
 
 Visit activities already scale hard with grade and interest level (Interested A = **+30**, Dealbreaker A+ = **+48**).
 
-**Example:** An Interested visit activity graded A (**+30**) becomes **+45** with HC Hospitality, or **+55** with full staff -- before stacking multiple activities on the same visit.
+**Example:** An Interested visit activity graded A (**+30**) becomes **+45** with HC Hospitality or **+55** with full staff, before stacking multiple activities on the same visit.
 
 ### Mind Reader (`Recruiting_UnlockTrait_Visit`)
 
@@ -199,9 +209,9 @@ Large boost to the pipeline bonus on recruiting actions for that position.
 
 - HC: **+100**. Full staff: **+200**.
 
-Baseline pipeline bonuses on SoftSell are only **0 / 2 / 4 / 6 / 8 / 10** by level; HardSell **0 / 4 / 8 / 12 / 16 / 20**. Home Sweet Home dwarfs those tables -- treat the talent value as a large flat add to pipeline influence for that position group.
+Baseline pipeline bonuses on SoftSell are **0 / 2 / 4 / 6 / 8 / 10** by level; HardSell uses **0 / 4 / 8 / 12 / 16 / 20**. Home Sweet Home adds a much larger flat value to pipeline influence for that position group.
 
-**Example:** SoftSell on a L5 pipeline recruit normally gets **+10** pipeline. HC Home Sweet Home adds **+100** more pipeline influence (**+110** pipeline piece alone). Full staff makes that **+210** on top of the SoftSell base 20 -- pipeline becomes the dominant part of the action.
+**Example:** SoftSell on an L5 pipeline recruit normally gets **+10** pipeline influence. HC Home Sweet Home adds **+100**, producing **+110** from pipeline alone. Full staff raises that to **+210** on top of the SoftSell base of 20.
 
 ---
 
@@ -216,7 +226,7 @@ Baseline pipeline bonuses on SoftSell are only **0 / 2 / 4 / 6 / 8 / 10** by lev
 
 **+10** starting interest for recruits from your **primary** pipeline.
 
-**Example:** Primary-pipeline starting interest ladder is **0 / 5 / 10 / 15 / 25 / 35**. Household Name is a flat **+10** on top of whatever that ladder already gave -- roughly another full step (L2→L3 or L3→L4-ish depending on level).
+**Example:** The primary-pipeline starting-interest ladder is **0 / 5 / 10 / 15 / 25 / 35**. Household Name adds a flat **+10** after the pipeline value.
 
 ### Hometown Discount (`Recruiting_Action_InfluenceBoost_Pipeline`)
 
@@ -254,6 +264,21 @@ That is passive interest on top of whatever the hours actions themselves granted
 
 ---
 
+## Also recruiting-adjacent
+
+See the [complete coaching guide](coaching-abilities.md) for full stacks and Program Builder / CEO value units.
+
+| Ability | HC | Own / off coord | What it does |
+|---------|---:|----------------:|--------------|
+| Always Be Crootin' | 15 | 10 / 5 | weekly recruiting hours |
+| Advanced Look | 1 | 1 / 0 | faster scouting |
+| Reach Your Potential | 1 | 1 / 0 | interest when roster player hits skill cap |
+| More the Merrier | 4 | None | +4 visit slots (base 4 → **8**) |
+| Last Dance | 100 | None | +100 interest per prior visit elsewhere (UI); effect name is chance-style |
+| Portal Preview | bool | None | see other schools' At Risk |
+
+---
+
 ## Quick reference (HC values)
 
 | Tree | Ability | HC value | What it does |
@@ -272,6 +297,7 @@ That is passive interest on top of whatever the hours actions themselves granted
 | Program Builder | Hometown Discount | +25 | primary-pipeline action influence |
 | CEO | Dream School | +10 | instant commit when #1 |
 | CEO | Lasting Impression | +5 / 10 hrs | interest from hours spent |
+| None | Always Be Crootin' | +15 hours | weekly recruiting hours |
 
 ---
 

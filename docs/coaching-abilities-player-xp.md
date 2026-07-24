@@ -1,5 +1,5 @@
 ---
-title: "CFB 27 Coaching Abilities -- Player XP"
+title: "CFB 27 Coaching Abilities: Player XP"
 geometry: margin=0.75in
 header-includes:
   - \usepackage{longtable}
@@ -14,6 +14,16 @@ Derived from `dynasty-tuning-binary.FTC` (CFB 27).
 Talent values are identical in patch 2 and patch 3.
 
 Source: `Talent` / `TalentDataInt`. Runtime: `Team.CoachTalentEffects`.
+
+**Full ability list (all trees):** [Coaching Abilities: Complete Guide](coaching-abilities.md).
+
+## Executive summary
+
+- Coach XP talents stack by **adding** HC + OC + DC, then applying once.
+- Percent talents use `xp = xp * (100 + totalBoost) / 100`; flat talents add XP to the grant.
+- Biggest percent stacks: **Star Maker / Whisperer** up to **+17%**; **Everybody Eats / Put in Work / Field Study** up to **+10%**.
+- Notable flats: **Can't Stop, Won't Stop** up to **+600 XP** per 3-game win streak; **Show Don't Tell** **+1000 XP** per visiting prospect on a win (per staff role that owns it).
+- Offseason training XP formula and base ranges: [Player XP, Levels & Dev Traits](./player-xp-levels-devtraits.md).
 
 ---
 
@@ -56,8 +66,15 @@ Flat XP bonuses add to the grant.
 | Max Gains | skill-group max | 400 XP | 400 XP | 400 XP | flat |
 | Let's Grow | player levels up | 15 XP | 15 XP | 15 XP | flat |
 | Grow Together | player levels up | 7 XP | 7 XP | 7 XP | flat |
+| Pay it Forward | same-pos player drafted | 4000 XP | varies | varies | flat |
+| Show Don't Tell | visiting prospect on a win | 1000 XP | 1000 XP | 1000 XP | flat |
+| Limitless | chance to raise skill cap on level-up | 10 | 2 | 5 | **17** |
+| Put a Ring on It | chance to raise best cap on title | 50 | 25 | 25 | **100** |
+| Senior Superlatives | +1 all skill-group caps (rising SR) | 1 | 0 | 0 | HC only |
 
 OC/DC values swap by side of ball. Defense gets the larger DC tier; offense gets the larger OC tier. Numbers above show the defense-side OC/DC split for the percent abilities (Everybody Eats / Put in Work / Field Study: OC=2 DC=3; Star Maker / Whisperer: OC=2 DC=5; Can't Stop: OC=100 DC=200). Flip OC and DC for offense groups.
+
+Pay it Forward coordinator values vary by position (e.g. DB: OC 1000 / DC 1500; QB: OC 4000 / DC 1000). See [Coaching Abilities: Complete Guide](coaching-abilities.md).
 
 ---
 
@@ -85,4 +102,4 @@ chanceBoost = 100 + Training_ChanceBoost_DevTrait
 increaseChance = increaseChance * chanceBoost / 100
 ```
 
-So Gainz Getter is a **1.20x** relative multiplier on the player's computed dev-trait increase chance -- not a flat +20 percentage points on the final roll in isolation, but +20 added into the 100-base chanceBoost scale.
+Gainz Getter is a **1.20x** relative multiplier on the player's computed development-trait increase chance. It adds 20 to the 100-base `chanceBoost` scale rather than 20 percentage points to the final roll.
