@@ -1,6 +1,9 @@
 package dynasty
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestSkillGroupSlotsFromRecord(t *testing.T) {
 	record := Record{Fields: map[string]FieldValue{
@@ -46,6 +49,138 @@ func TestSkillGroupSlotsFromRecord_MissingOrEmpty(t *testing.T) {
 	}
 }
 
+func TestSkillGroupOverall(t *testing.T) {
+	rating := func(value int) *int { return &value }
+	tests := []struct {
+		name       string
+		attributes []SkillGroupAttributeExport
+		want       int
+		wantOK     bool
+	}{
+		{
+			name: "weighted tiers",
+			attributes: []SkillGroupAttributeExport{
+				{Rating: rating(80), Tier: "Primary"},
+				{Rating: rating(100), Tier: "Secondary"},
+				{Rating: rating(70), Tier: "Tertiary"},
+			},
+			want: 82, wantOK: true,
+		},
+		{
+			name: "tiers absent",
+			attributes: []SkillGroupAttributeExport{
+				{Rating: rating(80)},
+				{Rating: rating(100)},
+			},
+			want: 90, wantOK: true,
+		},
+		{
+			name: "tiers incomplete",
+			attributes: []SkillGroupAttributeExport{
+				{Rating: rating(80), Tier: "Primary"},
+				{Rating: rating(100)},
+			},
+			want: 90, wantOK: true,
+		},
+		{
+			name:       "rating missing",
+			attributes: []SkillGroupAttributeExport{{Tier: "Primary"}},
+			wantOK:     false,
+		},
+		{name: "attributes missing", wantOK: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := SkillGroupOverall(tt.attributes)
+			if got != tt.want || ok != tt.wantOK {
+				t.Fatalf("SkillGroupOverall() = (%d, %v), want (%d, %v)", got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestSkillGroupCurrentLevel(t *testing.T) {
+	families := []struct {
+		name      string
+		positions []string
+		minimums  []int
+	}{
+		{
+			name:      "FB and TE",
+			positions: []string{"FB", "TE"},
+			minimums:  []int{59, 61, 63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 84, 85, 86, 87, 88, 89},
+		},
+		{
+			name:      "WR MIKE K and P",
+			positions: []string{"WR", "MIKE", "MLB", "K", "P"},
+			minimums:  []int{61, 64, 66, 69, 71, 74, 76, 79, 81, 84, 86, 89, 91, 93, 95, 96, 97, 98, 99},
+		},
+		{
+			name:      "default",
+			positions: []string{"QB", "ATH", "te", ""},
+			minimums:  []int{63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95, 97, 99},
+		},
+	}
+
+	for _, family := range families {
+		t.Run(family.name, func(t *testing.T) {
+			for _, position := range family.positions {
+				for i, minimum := range family.minimums {
+					if got, want := skillGroupCurrentLevel(position, minimum-1, 20), i+1; got != want {
+						t.Errorf("skillGroupCurrentLevel(%q, %d, 20) = %d, want %d", position, minimum-1, got, want)
+					}
+					if got, want := skillGroupCurrentLevel(position, minimum, 20), i+2; got != want {
+						t.Errorf("skillGroupCurrentLevel(%q, %d, 20) = %d, want %d", position, minimum, got, want)
+					}
+				}
+			}
+		})
+	}
+
+	if got := skillGroupCurrentLevel("FB", 89, 17); got != 17 {
+		t.Errorf("clamped level = %d, want 17", got)
+	}
+	for _, ceiling := range []int{0, -1} {
+		if got := skillGroupCurrentLevel("QB", 99, ceiling); got != 0 {
+			t.Errorf("level with ceiling %d = %d, want 0", ceiling, got)
+		}
+	}
+}
+
+func TestSkillGroupCurrentLevelsRequiresSixCompleteGroups(t *testing.T) {
+	rating := 99
+	groups := make([]SkillGroupExport, skillGroupCapCount)
+	for i := range groups {
+		groups[i].Attributes = []SkillGroupAttributeExport{{Rating: &rating, Tier: "Primary"}}
+	}
+	ceilings := []int{20, 19, 18, 17, 16, 0}
+	if got := skillGroupCurrentLevels("QB", groups, ceilings); !slices.Equal(got, ceilings) {
+		t.Fatalf("levels = %v, want %v", got, ceilings)
+	}
+
+	rating = 61
+	for _, tt := range []struct {
+		position string
+		want     []int
+	}{
+		{position: "FB", want: []int{3, 3, 3, 3, 3, 0}},
+		{position: "WR", want: []int{2, 2, 2, 2, 2, 0}},
+		{position: "QB", want: []int{1, 1, 1, 1, 1, 0}},
+	} {
+		if got := skillGroupCurrentLevels(tt.position, groups, ceilings); !slices.Equal(got, tt.want) {
+			t.Errorf("%s levels = %v, want %v", tt.position, got, tt.want)
+		}
+	}
+
+	groups[2].Attributes[0].Rating = nil
+	if got := skillGroupCurrentLevels("QB", groups, ceilings); got != nil {
+		t.Fatalf("incomplete ratings returned %v, want nil", got)
+	}
+	if got := skillGroupCurrentLevels("QB", groups[:5], ceilings); got != nil {
+		t.Fatalf("five groups returned %v, want nil", got)
+	}
+}
+
 func skillGroupCapField(i int) string {
 	return "SkillGroupCap" + string(rune('0'+i))
 }
@@ -70,6 +205,24 @@ func TestExportRecruitSkillGroupCaps(t *testing.T) {
 		}
 		if len(p.SkillGroupUnlockedSlots) != skillGroupCapCount {
 			t.Fatalf("recruit %d: %d unlocked slots, want %d", recruit.ID, len(p.SkillGroupUnlockedSlots), skillGroupCapCount)
+		}
+		calculable := len(p.SkillGroups) == skillGroupCapCount && len(p.SkillGroupUnlockedSlots) == skillGroupCapCount
+		for _, group := range p.SkillGroups {
+			if _, ok := SkillGroupOverall(group.Attributes); !ok {
+				calculable = false
+				break
+			}
+		}
+		if calculable && len(p.SkillGroupCurrentLevels) != skillGroupCapCount {
+			t.Fatalf("recruit %d: %d current levels, want %d", recruit.ID, len(p.SkillGroupCurrentLevels), skillGroupCapCount)
+		}
+		if !calculable && len(p.SkillGroupCurrentLevels) != 0 {
+			t.Fatalf("recruit %d: current levels emitted for incomplete groups", recruit.ID)
+		}
+		for i, level := range p.SkillGroupCurrentLevels {
+			if level < 0 || level > p.SkillGroupUnlockedSlots[i] {
+				t.Fatalf("recruit %d bucket %d: current level %d outside 0..%d", recruit.ID, i+1, level, p.SkillGroupUnlockedSlots[i])
+			}
 		}
 		sumCapped := 0
 		sumUnlocked := 0
@@ -118,6 +271,14 @@ func TestMalachiSingletonSkillGroupCaps(t *testing.T) {
 	}
 	if player == nil {
 		t.Fatal("Malachi Singleton not found")
+	}
+	if len(player.SkillGroupCurrentLevels) != skillGroupCapCount {
+		t.Fatalf("current levels len = %d, want %d", len(player.SkillGroupCurrentLevels), skillGroupCapCount)
+	}
+	for i, level := range player.SkillGroupCurrentLevels {
+		if level < 0 || level > player.SkillGroupUnlockedSlots[i] {
+			t.Fatalf("bucket %d: current level %d outside 0..%d", i+1, level, player.SkillGroupUnlockedSlots[i])
+		}
 	}
 	if player.SkillGroupCapTotal != 21 {
 		t.Fatalf("skillGroupCapTotal = %d, want 21", player.SkillGroupCapTotal)

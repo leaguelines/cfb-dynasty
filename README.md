@@ -149,17 +149,20 @@ Rebuild after EA patches that change table layouts. If you already have a workin
 
 **Alternatives:** [`madden-franchise`](https://github.com/bep713/madden-franchise) `schemaGenerator` / Franchise Editor schema search can also produce compatible `.gz` files.
 
-**4. Optional: tuning FTC for skill group labels**
+**4. Optional: tuning FTC for skill group data**
 
-Skill group bucket names and recruiting formula constants live in
-`dynasty-tuning-binary.FTC` from the same MMC Frosty extract. Keep it under your schema directory as:
+Skill group bucket names, attribute membership, tier metadata used for current
+levels, and recruiting formula constants live in `dynasty-tuning-binary.FTC`
+from the same MMC Frosty extract. Keep it under your schema directory as:
 
 ```
 schemas/cfb27-db-data/<patch>/dynasty-tuning-binary.FTC
 ```
 
 The exporter auto-discovers the newest patch folder. Pass `--tuning-path` to
-override. Without this file, skill group caps still export but remain unnamed.
+override. Without this file, skill-group capped/unlocked counts still export in
+save-slot order, but labels, attributes, and `skillGroupCurrentLevels` are
+omitted because group membership cannot be determined.
 
 ### Should schema bundles be committed to git?
 
@@ -239,7 +242,7 @@ weather, kicking, and offensive line stats when `--games` is selected.
 Additional flags:
 
 - `--no-game-stats` — omit team/player stat lines from game exports
-- `--tuning-path` — path to `dynasty-tuning-binary.FTC` for skill group labels (auto-discovered under `--schema-dir` when omitted)
+- `--tuning-path` — path to `dynasty-tuning-binary.FTC` for skill group labels, attributes, and current levels (auto-discovered under `--schema-dir` when omitted)
 - `-o path` — write JSON to a file (stdout if omitted)
 - `--pretty=false` — compact JSON
 
@@ -285,21 +288,29 @@ cfb-dynasty export -schema-dir ./schemas --recruits /path/to/Dynasty1 | \
   jq '.recruits[] | select(.nationalRank != null and .player != null) |
       {rank: .nationalRank, name: "\(.player.firstName) \(.player.lastName)",
        position: .player.position, archetype: .player.archetypeLabel, overall: .player.overall,
-       skillCaps: .player.skillGroupCaps, skillGroups: .player.skillGroups, skillCapTotal: .player.skillGroupCapTotal, unlockedTotal: .player.skillGroupUnlockedTotal}'
+       skillCaps: .player.skillGroupCaps, currentLevels: .player.skillGroupCurrentLevels,
+       skillGroups: .player.skillGroups, skillCapTotal: .player.skillGroupCapTotal, unlockedTotal: .player.skillGroupUnlockedTotal}'
 ```
 
-### Skill group caps
+### Skill group caps and current levels
 
 Every player (including a recruit's linked `player`) exports its six skill-group
 cap slots read straight from the save:
 
 - `skillGroupCaps` — greyed-out/capped upgrade slots per bucket (`SkillGroupCapMax - saved value`, 0..20 each).
 - `skillGroupUnlockedSlots` — unlocked upgrade slots still available in each bucket (raw `SkillGroupCap1..6` save values).
+- `skillGroupCurrentLevels` — current developed levels per bucket. The exporter computes each group OVR with per-attribute weights of 15 for Primary, 3 for Secondary, and 1 for Tertiary, then uses the player's position to select the minimum OVR for levels 2 through 20:
+  - `FB`, `TE`: `59, 61, 63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 84, 85, 86, 87, 88, 89`
+  - `WR`, `MIKE`, `K`, `P`: `61, 64, 66, 69, 71, 74, 76, 79, 81, 84, 86, 89, 91, 93, 95, 96, 97, 98, 99`
+  - All other positions: `63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95, 97, 99`
+  Level 1 applies when no minimum is reached. The result is clamped to the corresponding `skillGroupUnlockedSlots` ceiling.
 - `skillGroupCapTotal` — total greyed-out upgrade slots across all six buckets (sum of `skillGroupCaps`).
 - `skillGroupUnlockedTotal` — total unlocked upgrade slots (sum of save values; useful recruit ceiling proxy).
-- `skillGroups` — when tuning data is available, each bucket includes its UI label, capped/unlocked slot counts, and `attributeCount` (number of individual attributes in that bucket from tuning).
+- `skillGroups` — when tuning data is available, each bucket includes its UI label, attributes and tiers, capped/unlocked slot counts, and `attributeCount` (number of individual attributes in that bucket from tuning).
 
-Each bucket has up to 20 upgrade slots in the save (`SkillGroupCapMax` from tuning). The UI shows 10 segments per bucket, but the save tracks capacity on a 0..20 scale. Bucket **names** and attribute lists come from `dynasty-tuning-binary.FTC` in the game install. Place that file under your `--schema-dir` as `cfb27-db-data/<patch>/dynasty-tuning-binary.FTC`, or pass `--tuning-path` on export. Without tuning data, capped/unlocked counts still export in save slot order but remain unlabeled.
+Each bucket has up to 20 upgrade slots in the save (`SkillGroupCapMax` from tuning). The UI shows 10 segments per bucket, but the save tracks capacity on a 0..20 scale. Bucket labels, attribute membership, and tiers come from `dynasty-tuning-binary.FTC` in the game install. Place that file under your `--schema-dir` as `cfb27-db-data/<patch>/dynasty-tuning-binary.FTC`, or pass `--tuning-path` on export.
+
+When group attributes and ratings are known but tier metadata is incomplete, the exporter uses a simple average and the result may be inaccurate. When group membership or any required rating is unavailable, it omits the entire six-value array rather than exporting partial values.
 
 ### Per-game player stats
 

@@ -269,6 +269,7 @@ func applySkillGroupLabels(player *PlayerExport, record Record, idx skillGroupIn
 		groups = append(groups, entry)
 	}
 	player.SkillGroups = groups
+	player.SkillGroupCurrentLevels = skillGroupCurrentLevels(player.Position, groups, player.SkillGroupUnlockedSlots)
 }
 
 func playerAbilityRatingKey(ability string) string {

@@ -58,7 +58,7 @@ func physicalAbilityPositionKey(position string) string {
 		return "OL"
 	case "LE", "RE", "DT", "DL":
 		return "DL"
-	case "SAM", "MIKE", "WILL", "LB":
+	case "SAM", "MIKE", "MLB", "WILL", "LB":
 		return "LB"
 	case "FS", "SS", "S":
 		return "S"
