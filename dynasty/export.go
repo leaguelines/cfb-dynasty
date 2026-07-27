@@ -762,6 +762,7 @@ type PlayerExport struct {
 	Ratings            map[string]int              `json:"ratings,omitempty"`
 	SkillGroupCaps            []int              `json:"skillGroupCaps,omitempty"`            // greyed/capped upgrade slots per bucket
 	SkillGroupUnlockedSlots   []int              `json:"skillGroupUnlockedSlots,omitempty"`   // unlocked upgrade slots saved per bucket (0..20)
+	SkillGroupCurrentLevels   []int              `json:"skillGroupCurrentLevels,omitempty"`   // current developed levels per bucket
 	SkillGroupLabels          []string           `json:"skillGroupLabels,omitempty"`
 	SkillGroupAttributeCounts []int              `json:"skillGroupAttributeCounts,omitempty"` // attribute definitions per bucket from tuning
 	SkillGroups               []SkillGroupExport `json:"skillGroups,omitempty"`
@@ -814,7 +815,8 @@ type SkillGroupAttributeExport struct {
 	RatingKey     string `json:"ratingKey,omitempty"`
 	Rating        *int   `json:"rating,omitempty"`
 	// Tier is Primary, Secondary, or Tertiary from PlayerSkillGroupBucket.
-	// In-game skill-group ratings average Primary skills only.
+	// In-game skill-group ratings weight individual attributes Primary=15, Secondary=3,
+	// and Tertiary=1, falling back to a simple average when tier metadata is incomplete.
 	Tier string `json:"tier,omitempty"`
 }
 

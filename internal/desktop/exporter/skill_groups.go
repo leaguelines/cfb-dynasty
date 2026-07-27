@@ -51,8 +51,12 @@ func SkillGroupRows(p *dynasty.PlayerExport) []SkillGroupRow {
 	}
 	if len(p.SkillGroups) > 0 {
 		rows := make([]SkillGroupRow, 0, len(p.SkillGroups))
-		for _, g := range p.SkillGroups {
-			rows = append(rows, buildSkillGroupRow(g, p.Ratings))
+		for i, g := range p.SkillGroups {
+			currentLevel := 0
+			if i < len(p.SkillGroupCurrentLevels) {
+				currentLevel = p.SkillGroupCurrentLevels[i]
+			}
+			rows = append(rows, buildSkillGroupRow(g, p.Ratings, currentLevel))
 		}
 		return rows
 	}
@@ -88,58 +92,51 @@ func SkillGroupRows(p *dynasty.PlayerExport) []SkillGroupRow {
 		if i < len(p.SkillGroupAttributeCounts) {
 			g.AttributeCount = p.SkillGroupAttributeCounts[i]
 		}
-		rows = append(rows, buildSkillGroupRow(g, p.Ratings))
+		currentLevel := 0
+		if i < len(p.SkillGroupCurrentLevels) {
+			currentLevel = p.SkillGroupCurrentLevels[i]
+		}
+		rows = append(rows, buildSkillGroupRow(g, p.Ratings, currentLevel))
 	}
 	return rows
 }
 
-func buildSkillGroupRow(g dynasty.SkillGroupExport, ratings map[string]int) SkillGroupRow {
+func buildSkillGroupRow(g dynasty.SkillGroupExport, ratings map[string]int, currentLevel int) SkillGroupRow {
 	label := strings.TrimSpace(g.Label)
 	if label == "" {
 		label = "Slot " + fmtInt(g.Slot)
 	}
 	sub := skillGroupSubRatings(g.Attributes, label, ratings)
 	rating, hasRating := skillGroupDisplayRating(g.Attributes, sub)
-	row := SkillGroupRow{
+	return SkillGroupRow{
 		Label:          label,
 		Rating:         rating,
 		HasRating:      hasRating,
-		Segments:       buildSkillGroupSegments(rating, g.UnlockedSlots, g.CappedSlots),
+		Segments:       buildSkillGroupSegments(currentLevel, g.CappedSlots),
 		SubRatings:     sub,
 		HasSubRatings:  len(sub) > 0,
 		CappedSlots:    g.CappedSlots,
 		UnlockedSlots:  g.UnlockedSlots,
 		AttributeCount: g.AttributeCount,
 	}
-	return row
 }
 
-func buildSkillGroupSegments(rating, unlocked, capped int) []SkillGroupSegment {
+func buildSkillGroupSegments(currentLevel, capped int) []SkillGroupSegment {
 	if capped < 0 {
 		capped = 0
 	}
-	if unlocked < 0 {
-		unlocked = 0
+	if capped > skillGroupBucketMax {
+		capped = skillGroupBucketMax
 	}
 	playable := skillGroupBucketMax - capped
-	if playable < 0 {
-		playable = 0
+	filled := currentLevel
+	if filled < 0 {
+		filled = 0
 	}
-	if unlocked > playable {
-		unlocked = playable
-	}
-
-	filled := 0
-	if rating > 0 && playable > 0 {
-		filled = int(math.Round(float64(rating) / 99.0 * float64(playable)))
-		if filled > playable {
-			filled = playable
-		}
+	if filled > playable {
+		filled = playable
 	}
 	available := playable - filled
-	if available < 0 {
-		available = 0
-	}
 
 	segments := make([]SkillGroupSegment, 0, skillGroupBucketMax)
 	for i := 0; i < filled; i++ {
@@ -196,31 +193,8 @@ func skillGroupAttributeValue(attr dynasty.SkillGroupAttributeExport, ratings ma
 }
 
 func skillGroupDisplayRating(attrs []dynasty.SkillGroupAttributeExport, sub []SkillGroupSubRating) (int, bool) {
-	// In-game skill-group ratings average PrimarySkills only (Secondary/Tertiary
-	// still appear in the detail list and can be purchased, but don't drive the header number).
-	var primary []int
-	hasTier := false
-	for _, attr := range attrs {
-		if attr.Tier != "" {
-			hasTier = true
-		}
-		if !strings.EqualFold(attr.Tier, "Primary") {
-			continue
-		}
-		if attr.Rating != nil {
-			primary = append(primary, *attr.Rating)
-		}
-	}
-	if len(primary) > 0 {
-		sum := 0
-		for _, v := range primary {
-			sum += v
-		}
-		return sum / len(primary), true
-	}
-	if hasTier {
-		// Primaries present but ratings unresolved — don't fall back to diluting with secondaries.
-		return 0, false
+	if len(attrs) > 0 {
+		return dynasty.SkillGroupOverall(attrs)
 	}
 	return skillGroupAverage(sub)
 }
