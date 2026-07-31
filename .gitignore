@@ -31,11 +31,11 @@ Thumbs.db
 /testdata/*.bin
 /fixtures/
 
-# Game-derived schema bundles and local RE data (do not redistribute)
+# Local schema bundles / saves / fixtures (do not redistribute)
 /data/
 *.gz
 
-# Ghidra decompile cache / RE notes (game-derived; regenerate via tools/ghidra/)
+# RE extracts & tools live in ~/Documents/Projects/cfb27-re; ignore if recreated here
 /ghidra-export/
 
 # Optional GUI logo packs (large; UI works without them)
@@ -43,7 +43,7 @@ Thumbs.db
 /cmd/cfb-dynasty-gui/frontend/dist/static/conferences/
 /cmd/cfb-dynasty-gui/frontend/dist/static/abilities/
 
-# Local RE / analysis helpers (do not commit)
+# Local RE / analysis helpers (do not commit; see cfb27-re)
 /tools/
 
 # Wails / GUI build output

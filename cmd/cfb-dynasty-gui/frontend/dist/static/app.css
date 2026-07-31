@@ -836,6 +836,7 @@ tbody tr:hover { background: rgba(79, 140, 255, .06); }
   mix-blend-mode: color;
   opacity: .82;
 }
+.ability-tier-heisman::after { background: #e8c547; }
 .ability-tier-platinum::after { background: #b57cff; }
 .ability-tier-gold::after { background: #f0c040; }
 .ability-tier-silver::after { background: #c8d0dc; }

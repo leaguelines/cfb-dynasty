@@ -61,9 +61,12 @@ func MentalAbilityImagePath(enum string) string {
 	return "/static/abilities/" + asset.Slug + "." + asset.Ext
 }
 
-// PhysicalAbilityTierLevel maps export tier names to display levels (0–4).
+// PhysicalAbilityTierLevel maps export tier names to display levels (0–5).
+// 0=locked, 1=Bronze … 4=Platinum, 5=Heisman (AbilityTier_Legendary).
 func PhysicalAbilityTierLevel(tier string) int {
 	switch strings.ToLower(strings.TrimSpace(tier)) {
+	case "heisman", "legendary":
+		return 5
 	case "platinum":
 		return 4
 	case "gold":
@@ -80,6 +83,8 @@ func PhysicalAbilityTierLevel(tier string) int {
 // PhysicalAbilityTierClass returns the CSS class for a tier level.
 func PhysicalAbilityTierClass(level int) string {
 	switch level {
+	case 5:
+		return "ability-tier-heisman"
 	case 4:
 		return "ability-tier-platinum"
 	case 3:

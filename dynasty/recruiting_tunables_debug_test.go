@@ -14,7 +14,9 @@ func TestListRecruitingTuningTables(t *testing.T) {
 	settings.AutoParse = true
 	path := filepath.Join(schemaDir, "cfb27-db-data", "2", "dynasty-tuning-binary.FTC")
 	tf, err := Open(path, &settings)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Skip("tuning data not available:", err)
+	}
 	var names []string
 	for i := range tf.tables {
 		n := tf.tables[i].Name()

@@ -11,6 +11,10 @@ func TestExportRecruitingTunables(t *testing.T) {
 	if _, err := os.Stat(schemaDir); err != nil {
 		t.Skip("schema dir not available")
 	}
+	tuningPath := filepath.Join(schemaDir, "cfb27-db-data", "2", "dynasty-tuning-binary.FTC")
+	if _, err := os.Stat(tuningPath); err != nil {
+		t.Skip("tuning data not available:", tuningPath)
+	}
 	export, err := ExportRecruitingTunables(schemaDir, "")
 	if err != nil {
 		t.Fatal(err)
